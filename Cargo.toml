@@ -5,7 +5,11 @@ authors = ["Steven Fackler <sfackler@gmail.com>"]
 
 [dependencies]
 cargo = "0.15"
-rustc-serialize = "0.3"
 docopt = "0.6"
-tar = { version = "0.4", default_features = false }
 flate2 = "0.2"
+rustc-serialize = "0.3"
+serde = "0.8"
+serde_yaml = "0.5"
+tar = { version = "0.4", default_features = false }
+toml = { version = "0.2", default_features = false, features = ["serde"] }
+

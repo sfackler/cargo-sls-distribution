@@ -1,0 +1,40 @@
+use serde_yaml::Value;
+use std::collections::HashMap;
+
+#[derive(Deserialize)]
+pub struct CargoToml {
+    pub package: CargoPackage,
+}
+
+#[derive(Deserialize)]
+pub struct CargoPackage {
+    pub metadata: CargoMetadata,
+}
+
+#[derive(Deserialize)]
+pub struct CargoMetadata {
+    pub distribution: CargoDistribution,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CargoDistribution {
+    pub group: String,
+    #[serde(default)]
+    pub manifest_extensions: HashMap<String, Value>,
+}
+
+#[derive(Serialize)]
+pub struct Manifest {
+    #[serde(rename = "manifest-version")]
+    pub manifest_version: String,
+    #[serde(rename = "product-type")]
+    pub product_type: String,
+    #[serde(rename = "product-group")]
+    pub product_group: String,
+    #[serde(rename = "product-name")]
+    pub product_name: String,
+    #[serde(rename = "product-version")]
+    pub product_version: String,
+    pub extensions: HashMap<String, Value>,
+}

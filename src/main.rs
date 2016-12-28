@@ -2,7 +2,10 @@ extern crate cargo;
 extern crate docopt;
 extern crate flate2;
 extern crate rustc_serialize;
+extern crate serde;
+extern crate serde_yaml;
 extern crate tar;
+extern crate toml;
 
 use cargo::core::Workspace;
 use cargo::core::package::Package;
@@ -12,9 +15,15 @@ use cargo::util::errors::ChainError;
 use cargo::{Config, CliResult, human};
 use flate2::Compression;
 use flate2::write::GzEncoder;
+use serde::Deserialize;
 use std::fs::File;
-use std::io::{Write, BufWriter};
+use std::io::{Read, Write, BufWriter};
+use std::time::UNIX_EPOCH;
 use std::path::Path;
+
+use serde_types::{CargoToml, CargoDistribution, Manifest};
+
+mod serde_types;
 
 const USAGE: &'static str = "
 Package a binary crate into a distribution tarball
@@ -96,6 +105,9 @@ fn real_main(options: Flags, config: &Config) -> CliResult<Option<()>> {
 
     let ws = Workspace::new(&root, config)?;
     let package = ws.current()?;
+
+    let config = get_config(package)?;
+
     let compilation = ops::compile(&ws, &opts)?;
 
     if compilation.binaries.len() != 1 {
@@ -103,33 +115,83 @@ fn real_main(options: Flags, config: &Config) -> CliResult<Option<()>> {
                                  compilation.binaries.len())).into());
     }
 
-    build_dist(package, &compilation.binaries[0])?;
+    build_dist(package, config, &compilation.binaries[0])?;
 
     Ok(None)
 }
 
-fn build_dist(package: &Package, bin_path: &Path) -> CliResult<()> {
+fn get_config(package: &Package) -> CliResult<CargoDistribution> {
+    let mut config = String::new();
+    File::open(package.manifest_path())
+        .chain_error(|| human("error opening Cargo.toml"))?
+        .read_to_string(&mut config)
+        .chain_error(|| human("error reading Cargo.toml"))?;
+
+    let mut parser = toml::Parser::new(&config);
+    let table = parser.parse().ok_or_else(|| human("error parsing Cargo.toml"))?;
+
+    CargoToml::deserialize(&mut toml::Decoder::new(toml::Value::Table(table)))
+        .chain_error(|| human("error deserializing Cargo.toml"))
+        .map(|t| t.package.metadata.distribution)
+        .map_err(Into::into)
+}
+
+fn build_dist(package: &Package, config: CargoDistribution, binary_path: &Path) -> CliResult<()> {
     let name = package.name();
     let version = package.version();
     let identifier = format!("{}-{}", name, version);
     let base = Path::new(&identifier);
     let bin_dir = base.join("service/bin");
 
-    let out = bin_path.parent().unwrap().join(format!("{}.sls.tgz", identifier));
+    let out = binary_path.parent().unwrap().join(format!("{}.sls.tgz", identifier));
     let out = File::create(&out)
         .chain_error(|| human(format!("error creating tarball {}", out.display())))?;
     let out = BufWriter::new(out);
     let out = GzEncoder::new(out, Compression::Default);
     let mut out = tar::Builder::new(out);
 
-    let mut bin = File::open(bin_path).chain_error(|| human("error opening binary"))?;
-    out.append_file(bin_dir.join(bin_path.file_name().unwrap()), &mut bin)
-        .chain_error(|| human("error writing to tarball"))?;
+    let manifest = Manifest {
+        manifest_version: "1.0".to_owned(),
+        product_type: "service.v1".to_owned(),
+        product_group: config.group,
+        product_name: package.name().to_owned(),
+        product_version: package.version().to_string(),
+        extensions: config.manifest_extensions,
+    };
+    let manifest = serde_yaml::to_string(&manifest).unwrap();
+    add_string(&mut out, &manifest, &base.join("deployment/manifest.yml"))?;
+
+    add_file(&mut out, binary_path, &bin_dir.join(binary_path.file_name().unwrap()))?;
 
     out.into_inner()
         .and_then(|w| w.finish())
         .and_then(|mut w| w.flush())
-        .chain_error(|| human("error writing to tarball"))?;
+        .chain_error(|| human("error writing tarball"))?;
 
+    Ok(())
+}
+
+fn add_file<W>(out: &mut tar::Builder<W>, file_path: &Path, target_path: &Path) -> CliResult<()>
+    where W: Write
+{
+    let mut file = File::open(file_path)
+        .chain_error(|| human(format!("error opening file {}", file_path.display())))?;
+    out.append_file(target_path, &mut file).chain_error(|| human("error writing tarball"))?;
+    Ok(())
+}
+
+fn add_string<W>(out: &mut tar::Builder<W>, contents: &str, target_path: &Path) -> CliResult<()>
+    where W: Write
+{
+    let mut header = tar::Header::new_gnu();
+    header.set_path(target_path).chain_error(|| human("error writing tarball"))?;
+    header.set_size(contents.len() as u64);
+    header.set_entry_type(tar::EntryType::file());
+    header.set_mtime(UNIX_EPOCH.elapsed().unwrap().as_secs());
+    header.set_mode(0o644);
+    header.set_cksum();
+
+    out.append(&header, &mut contents.as_bytes())
+        .chain_error(|| human("error writing tarball"))?;
     Ok(())
 }
