@@ -17,6 +17,7 @@ use cargo::{Config, CliResult, human};
 use flate2::Compression;
 use flate2::write::GzEncoder;
 use serde::Deserialize;
+use std::borrow::Cow;
 use std::fs::File;
 use std::io::{Read, Write, BufWriter};
 use std::time::UNIX_EPOCH;
@@ -26,6 +27,7 @@ use walkdir::WalkDir;
 use serde_types::{CargoToml, CargoDistribution, Manifest};
 
 mod serde_types;
+mod shell_escape;
 
 const USAGE: &'static str = "
 Package a binary crate into a distribution tarball
@@ -51,6 +53,8 @@ Options:
     --frozen                Require Cargo.lock and cache are up to date
     --locked                Require Cargo.lock is up to date
 ";
+
+const INIT_SH: &'static str = include_str!("init.sh");
 
 #[derive(RustcDecodable)]
 struct Flags {
@@ -138,15 +142,14 @@ fn get_config(package: &Package) -> CliResult<CargoDistribution> {
         .map_err(Into::into)
 }
 
-fn build_dist(package: &Package, config: CargoDistribution, binary_path: &Path) -> CliResult<()> {
+fn build_dist(package: &Package, config: CargoDistribution, binary_source: &Path) -> CliResult<()> {
     let name = package.name();
     let version = package.version();
     let identifier = format!("{}-{}", name, version);
     let package_dir = package.manifest_path().parent().unwrap();
     let base = Path::new(&identifier);
-    let bin_dir = base.join("service/bin");
 
-    let out = binary_path.parent().unwrap().join(format!("{}.sls.tgz", identifier));
+    let out = binary_source.parent().unwrap().join(format!("{}.sls.tgz", identifier));
     let out = File::create(&out)
         .chain_error(|| human(format!("error creating tarball {}", out.display())))?;
     let out = BufWriter::new(out);
@@ -162,9 +165,21 @@ fn build_dist(package: &Package, config: CargoDistribution, binary_path: &Path) 
         extensions: config.manifest_extensions,
     };
     let manifest = serde_yaml::to_string(&manifest).unwrap();
-    add_string(&mut out, &manifest, &base.join("deployment/manifest.yml"))?;
+    add_string(&mut out, &manifest, &base.join("deployment/manifest.yml"), 0o644)?;
 
-    add_file(&mut out, binary_path, &bin_dir.join(binary_path.file_name().unwrap()))?;
+    let binary_path = Path::new("service/bin").join(binary_source.file_name().unwrap());
+    let args = config.args
+        .into_iter()
+        .map(|s| shell_escape::escape(Cow::from(s)))
+        .collect::<Vec<_>>()
+        .join(" ");
+    let init_sh = INIT_SH
+        .replace("@bin@", &binary_path.display().to_string())
+        .replace("@args@", &args)
+        .replace("@service@", package.name());
+    add_string(&mut out, &init_sh, &base.join("service/bin/init.sh"), 0o755)?;
+
+    add_file(&mut out, binary_source, &base.join(&binary_path))?;
 
     add_dir(&mut out, &package_dir.join("var"), &base.join("var"))?;
     add_dir(&mut out, &package_dir.join("deployment"), &base.join("deployment"))?;
@@ -187,7 +202,10 @@ fn add_file<W>(out: &mut tar::Builder<W>, file_path: &Path, target_path: &Path) 
     Ok(())
 }
 
-fn add_string<W>(out: &mut tar::Builder<W>, contents: &str, target_path: &Path) -> CliResult<()>
+fn add_string<W>(out: &mut tar::Builder<W>,
+                 contents: &str,
+                 target_path: &Path,
+                 mode: u32) -> CliResult<()>
     where W: Write
 {
     let mut header = tar::Header::new_gnu();
@@ -195,7 +213,7 @@ fn add_string<W>(out: &mut tar::Builder<W>, contents: &str, target_path: &Path) 
     header.set_size(contents.len() as u64);
     header.set_entry_type(tar::EntryType::file());
     header.set_mtime(UNIX_EPOCH.elapsed().unwrap().as_secs());
-    header.set_mode(0o644);
+    header.set_mode(mode);
     header.set_cksum();
 
     out.append(&header, &mut contents.as_bytes())

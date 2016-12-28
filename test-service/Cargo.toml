@@ -5,6 +5,7 @@ authors = ["Steven Fackler <sfackler@gmail.com>"]
 
 [package.metadata.distribution]
 group = "com.sfackler.test"
+args = ["var/conf/server.yml", "foo bar"]
 manifest_extensions = { foo = "bar", fizz = [1, 2, 3] }
 
 [dependencies]

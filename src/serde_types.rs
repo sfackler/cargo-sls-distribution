@@ -371,7 +371,7 @@ const _IMPL_DESERIALIZE_FOR_CargoDistribution: () =
              -> ::std::result::Result<CargoDistribution, __D::Error> where
              __D: _serde::de::Deserializer {
                 #[allow(non_camel_case_types)]
-                enum __Field { __field0, __field1, }
+                enum __Field { __field0, __field1, __field2, }
                 impl _serde::de::Deserialize for __Field {
                     #[inline]
                     fn deserialize<__D>(deserializer: &mut __D)
@@ -389,6 +389,7 @@ const _IMPL_DESERIALIZE_FOR_CargoDistribution: () =
                                 match value {
                                     0usize => { Ok(__Field::__field0) }
                                     1usize => { Ok(__Field::__field1) }
+                                    2usize => { Ok(__Field::__field2) }
                                     _ =>
                                     Err(_serde::de::Error::invalid_value("expected a field")),
                                 }
@@ -401,6 +402,7 @@ const _IMPL_DESERIALIZE_FOR_CargoDistribution: () =
                                     "manifest_extensions" => {
                                         Ok(__Field::__field1)
                                     }
+                                    "args" => { Ok(__Field::__field2) }
                                     _ =>
                                     Err(_serde::de::Error::unknown_field(value)),
                                 }
@@ -413,6 +415,7 @@ const _IMPL_DESERIALIZE_FOR_CargoDistribution: () =
                                     b"manifest_extensions" => {
                                         Ok(__Field::__field1)
                                     }
+                                    b"args" => { Ok(__Field::__field2) }
                                     _ => {
                                         let value =
                                             ::std::string::String::from_utf8_lossy(value);
@@ -451,9 +454,19 @@ const _IMPL_DESERIALIZE_FOR_CargoDistribution: () =
                                     return Err(_serde::de::Error::invalid_length(1usize));
                                 }
                             };
+                        let __field2 =
+                            match try!(visitor . visit :: < Vec < String > > (
+                                        )) {
+                                Some(value) => { value }
+                                None => {
+                                    try!(visitor . end (  ));
+                                    return Err(_serde::de::Error::invalid_length(2usize));
+                                }
+                            };
                         try!(visitor . end (  ));
                         Ok(CargoDistribution{group: __field0,
-                                             manifest_extensions: __field1,})
+                                             manifest_extensions: __field1,
+                                             args: __field2,})
                     }
                     #[inline]
                     fn visit_map<__V>(&mut self, mut visitor: __V)
@@ -462,6 +475,7 @@ const _IMPL_DESERIALIZE_FOR_CargoDistribution: () =
                         let mut __field0: Option<String> = None;
                         let mut __field1: Option<HashMap<String, Value>> =
                             None;
+                        let mut __field2: Option<Vec<String>> = None;
                         while let Some(key) =
                                   try!(visitor . visit_key :: < __Field > (
                                        )) {
@@ -485,6 +499,15 @@ const _IMPL_DESERIALIZE_FOR_CargoDistribution: () =
                                                   HashMap < String , Value > >
                                                   (  )));
                                 }
+                                __Field::__field2 => {
+                                    if __field2.is_some() {
+                                        return Err(<__V::Error as
+                                                       _serde::de::Error>::duplicate_field("args"));
+                                    }
+                                    __field2 =
+                                        Some(try!(visitor . visit_value :: <
+                                                  Vec < String > > (  )));
+                                }
                             }
                         }
                         try!(visitor . end (  ));
@@ -499,12 +522,18 @@ const _IMPL_DESERIALIZE_FOR_CargoDistribution: () =
                                 Some(__field1) => __field1,
                                 None => ::std::default::Default::default(),
                             };
+                        let __field2 =
+                            match __field2 {
+                                Some(__field2) => __field2,
+                                None => ::std::default::Default::default(),
+                            };
                         Ok(CargoDistribution{group: __field0,
-                                             manifest_extensions: __field1,})
+                                             manifest_extensions: __field1,
+                                             args: __field2,})
                     }
                 }
                 const FIELDS: &'static [&'static str] =
-                    &["group", "manifest_extensions"];
+                    &["group", "manifest_extensions", "args"];
                 deserializer.deserialize_struct("CargoDistribution", FIELDS,
                                                 __Visitor)
             }
@@ -513,6 +542,7 @@ const _IMPL_DESERIALIZE_FOR_CargoDistribution: () =
 pub struct CargoDistribution {
     pub group: String,
     pub manifest_extensions: HashMap<String, Value>,
+    pub args: Vec<String>,
 }
 #[allow(non_upper_case_globals, unused_attributes, unused_qualifications)]
 const _IMPL_SERIALIZE_FOR_Manifest: () =

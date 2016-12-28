@@ -22,6 +22,8 @@ pub struct CargoDistribution {
     pub group: String,
     #[serde(default)]
     pub manifest_extensions: HashMap<String, Value>,
+    #[serde(default)]
+    pub args: Vec<String>,
 }
 
 #[derive(Serialize)]
