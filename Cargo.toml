@@ -12,4 +12,3 @@ serde = "0.8"
 serde_yaml = "0.5"
 tar = { version = "0.4", default_features = false }
 toml = { version = "0.2", default_features = false, features = ["serde"] }
-walkdir = "1.0"

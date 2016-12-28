@@ -6,25 +6,22 @@ extern crate serde;
 extern crate serde_yaml;
 extern crate tar;
 extern crate toml;
-extern crate walkdir;
 
 use cargo::core::{Source, Workspace};
 use cargo::core::package::Package;
 use cargo::ops::{self, CompileOptions, MessageFormat};
 use cargo::sources::PathSource;
 use cargo::util::important_paths::find_root_manifest_for_wd;
-use cargo::util::errors::{ChainError, internal};
+use cargo::util::errors::ChainError;
 use cargo::{Config, CliResult, human};
 use flate2::Compression;
 use flate2::write::GzEncoder;
 use serde::Deserialize;
 use std::borrow::Cow;
-use std::collections::HashSet;
 use std::fs::File;
 use std::io::{Read, Write, BufWriter};
 use std::time::UNIX_EPOCH;
 use std::path::{Path, PathBuf};
-use walkdir::WalkDir;
 
 use serde_types::{CargoToml, CargoDistribution, Manifest};
 
@@ -116,7 +113,7 @@ fn real_main(options: Flags, config: &Config) -> CliResult<Option<()>> {
 
     let mut sources = PathSource::new(package.root(), package.package_id().source_id(), config);
     sources.update()?;
-    let sources = sources.list_files(package)?.into_iter().collect::<HashSet<_>>();
+    let sources = sources.list_files(package)?;
 
     let config = get_config(package)?;
 
@@ -149,7 +146,7 @@ fn get_config(package: &Package) -> CliResult<CargoDistribution> {
 }
 
 fn build_dist(package: &Package,
-              sources: &HashSet<PathBuf>,
+              sources: &[PathBuf],
               config: CargoDistribution,
               binary_source: &Path)
               -> CliResult<()> {
@@ -232,26 +229,19 @@ fn add_string<W>(out: &mut tar::Builder<W>,
 }
 
 fn add_dir<W>(out: &mut tar::Builder<W>,
-              sources: &HashSet<PathBuf>,
+              sources: &[PathBuf],
               source_path: &Path,
               target_path: &Path)
               -> CliResult<()>
     where W: Write
 {
-    if !source_path.is_dir() {
-        return Ok(());
-    }
-
-    for entry in WalkDir::new(source_path) {
-        let entry = entry.map_err(|e| internal(e))?;
-        if entry.file_type().is_file() {
-            if !sources.contains(entry.path()) {
-                continue;
-            }
-
-            let path = entry.path().strip_prefix(source_path).unwrap();
-            add_file(out, entry.path(), &target_path.join(path))?;
+    for source in sources {
+        if !source.starts_with(source_path) {
+            continue;
         }
+
+        let path = source.strip_prefix(source_path).unwrap();
+        add_file(out, source, &target_path.join(path))?;
     }
 
     Ok(())
