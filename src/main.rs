@@ -6,12 +6,13 @@ extern crate serde;
 extern crate serde_yaml;
 extern crate tar;
 extern crate toml;
+extern crate walkdir;
 
 use cargo::core::Workspace;
 use cargo::core::package::Package;
 use cargo::ops::{self, CompileOptions, MessageFormat};
 use cargo::util::important_paths::find_root_manifest_for_wd;
-use cargo::util::errors::ChainError;
+use cargo::util::errors::{ChainError, internal};
 use cargo::{Config, CliResult, human};
 use flate2::Compression;
 use flate2::write::GzEncoder;
@@ -20,6 +21,7 @@ use std::fs::File;
 use std::io::{Read, Write, BufWriter};
 use std::time::UNIX_EPOCH;
 use std::path::Path;
+use walkdir::WalkDir;
 
 use serde_types::{CargoToml, CargoDistribution, Manifest};
 
@@ -140,6 +142,7 @@ fn build_dist(package: &Package, config: CargoDistribution, binary_path: &Path) 
     let name = package.name();
     let version = package.version();
     let identifier = format!("{}-{}", name, version);
+    let package_dir = package.manifest_path().parent().unwrap();
     let base = Path::new(&identifier);
     let bin_dir = base.join("service/bin");
 
@@ -162,6 +165,10 @@ fn build_dist(package: &Package, config: CargoDistribution, binary_path: &Path) 
     add_string(&mut out, &manifest, &base.join("deployment/manifest.yml"))?;
 
     add_file(&mut out, binary_path, &bin_dir.join(binary_path.file_name().unwrap()))?;
+
+    add_dir(&mut out, &package_dir.join("var"), &base.join("var"))?;
+    add_dir(&mut out, &package_dir.join("deployment"), &base.join("deployment"))?;
+    add_dir(&mut out, &package_dir.join("service"), &base.join("service"))?;
 
     out.into_inner()
         .and_then(|w| w.finish())
@@ -193,5 +200,23 @@ fn add_string<W>(out: &mut tar::Builder<W>, contents: &str, target_path: &Path) 
 
     out.append(&header, &mut contents.as_bytes())
         .chain_error(|| human("error writing tarball"))?;
+    Ok(())
+}
+
+fn add_dir<W>(out: &mut tar::Builder<W>, source_path: &Path, target_path: &Path) -> CliResult<()>
+    where W: Write
+{
+    if !source_path.is_dir() {
+        return Ok(());
+    }
+
+    for entry in WalkDir::new(source_path) {
+        let entry = entry.map_err(|e| internal(e))?;
+        if entry.file_type().is_file() {
+            let path = entry.path().strip_prefix(source_path).unwrap();
+            add_file(out, entry.path(), &target_path.join(path))?;
+        }
+    }
+
     Ok(())
 }
