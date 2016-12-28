@@ -8,9 +8,10 @@ extern crate tar;
 extern crate toml;
 extern crate walkdir;
 
-use cargo::core::Workspace;
+use cargo::core::{Source, Workspace};
 use cargo::core::package::Package;
 use cargo::ops::{self, CompileOptions, MessageFormat};
+use cargo::sources::PathSource;
 use cargo::util::important_paths::find_root_manifest_for_wd;
 use cargo::util::errors::{ChainError, internal};
 use cargo::{Config, CliResult, human};
@@ -18,10 +19,11 @@ use flate2::Compression;
 use flate2::write::GzEncoder;
 use serde::Deserialize;
 use std::borrow::Cow;
+use std::collections::HashSet;
 use std::fs::File;
 use std::io::{Read, Write, BufWriter};
 use std::time::UNIX_EPOCH;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
 use serde_types::{CargoToml, CargoDistribution, Manifest};
@@ -112,6 +114,10 @@ fn real_main(options: Flags, config: &Config) -> CliResult<Option<()>> {
     let ws = Workspace::new(&root, config)?;
     let package = ws.current()?;
 
+    let mut sources = PathSource::new(package.root(), package.package_id().source_id(), config);
+    sources.update()?;
+    let sources = sources.list_files(package)?.into_iter().collect::<HashSet<_>>();
+
     let config = get_config(package)?;
 
     let compilation = ops::compile(&ws, &opts)?;
@@ -121,7 +127,7 @@ fn real_main(options: Flags, config: &Config) -> CliResult<Option<()>> {
                                  compilation.binaries.len())).into());
     }
 
-    build_dist(package, config, &compilation.binaries[0])?;
+    build_dist(package, &sources, config, &compilation.binaries[0])?;
 
     Ok(None)
 }
@@ -142,11 +148,15 @@ fn get_config(package: &Package) -> CliResult<CargoDistribution> {
         .map_err(Into::into)
 }
 
-fn build_dist(package: &Package, config: CargoDistribution, binary_source: &Path) -> CliResult<()> {
+fn build_dist(package: &Package,
+              sources: &HashSet<PathBuf>,
+              config: CargoDistribution,
+              binary_source: &Path)
+              -> CliResult<()> {
     let name = package.name();
     let version = package.version();
     let identifier = format!("{}-{}", name, version);
-    let package_dir = package.manifest_path().parent().unwrap();
+    let package_dir = package.root();
     let base = Path::new(&identifier);
 
     let out = binary_source.parent().unwrap().join(format!("{}.sls.tgz", identifier));
@@ -181,9 +191,9 @@ fn build_dist(package: &Package, config: CargoDistribution, binary_source: &Path
 
     add_file(&mut out, binary_source, &base.join(&binary_path))?;
 
-    add_dir(&mut out, &package_dir.join("var"), &base.join("var"))?;
-    add_dir(&mut out, &package_dir.join("deployment"), &base.join("deployment"))?;
-    add_dir(&mut out, &package_dir.join("service"), &base.join("service"))?;
+    add_dir(&mut out, sources, &package_dir.join("var"), &base.join("var"))?;
+    add_dir(&mut out, sources, &package_dir.join("deployment"), &base.join("deployment"))?;
+    add_dir(&mut out, sources, &package_dir.join("service"), &base.join("service"))?;
 
     out.into_inner()
         .and_then(|w| w.finish())
@@ -221,7 +231,11 @@ fn add_string<W>(out: &mut tar::Builder<W>,
     Ok(())
 }
 
-fn add_dir<W>(out: &mut tar::Builder<W>, source_path: &Path, target_path: &Path) -> CliResult<()>
+fn add_dir<W>(out: &mut tar::Builder<W>,
+              sources: &HashSet<PathBuf>,
+              source_path: &Path,
+              target_path: &Path)
+              -> CliResult<()>
     where W: Write
 {
     if !source_path.is_dir() {
@@ -231,6 +245,10 @@ fn add_dir<W>(out: &mut tar::Builder<W>, source_path: &Path, target_path: &Path)
     for entry in WalkDir::new(source_path) {
         let entry = entry.map_err(|e| internal(e))?;
         if entry.file_type().is_file() {
+            if !sources.contains(entry.path()) {
+                continue;
+            }
+
             let path = entry.path().strip_prefix(source_path).unwrap();
             add_file(out, entry.path(), &target_path.join(path))?;
         }

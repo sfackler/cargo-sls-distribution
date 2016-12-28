@@ -2,6 +2,7 @@
 name = "test-service"
 version = "0.1.0"
 authors = ["Steven Fackler <sfackler@gmail.com>"]
+exclude = ["var/data/*"]
 
 [package.metadata.distribution]
 group = "com.sfackler.test"
