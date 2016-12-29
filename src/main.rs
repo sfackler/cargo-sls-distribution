@@ -126,7 +126,11 @@ fn real_main(options: Flags, config: &Config) -> CliResult<Option<()>> {
                                  compilation.binaries.len())).into());
     }
 
-    build_dist(package, &sources, config, version, &compilation.binaries[0])?;
+    let path = build_dist(package, &sources, config, version, &compilation.binaries[0])?;
+
+    if !options.flag_quiet {
+        println!("{}", path.display());
+    }
 
     Ok(None)
 }
@@ -166,15 +170,15 @@ fn build_dist(package: &Package,
               config: CargoDistribution,
               version: String,
               binary_source: &Path)
-              -> CliResult<()> {
+              -> CliResult<PathBuf> {
     let name = package.name();
     let identifier = format!("{}-{}", name, version);
     let package_dir = package.root();
     let base = Path::new(&identifier);
 
-    let out = binary_source.parent().unwrap().join(format!("{}.sls.tgz", identifier));
-    let out = File::create(&out)
-        .chain_error(|| human(format!("error creating tarball {}", out.display())))?;
+    let out_path = binary_source.parent().unwrap().join(format!("{}.sls.tgz", identifier));
+    let out = File::create(&out_path)
+        .chain_error(|| human(format!("error creating tarball {}", out_path.display())))?;
     let out = BufWriter::new(out);
     let out = GzEncoder::new(out, Compression::Default);
     let mut out = tar::Builder::new(out);
@@ -213,7 +217,7 @@ fn build_dist(package: &Package,
         .and_then(|mut w| w.flush())
         .chain_error(|| human("error writing tarball"))?;
 
-    Ok(())
+    Ok(out_path)
 }
 
 fn add_file<W>(out: &mut tar::Builder<W>, file_path: &Path, target_path: &Path) -> CliResult<()>
