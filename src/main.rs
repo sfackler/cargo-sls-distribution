@@ -155,7 +155,7 @@ fn get_version(package: &Package, config: &CargoDistribution) -> CliResult<Strin
             .chain_error(|| human("error discovering git repository"))?;
         let description = repo.describe(DescribeOptions::new().describe_tags())
             .chain_error(|| human("error describing git repository"))?;
-        let version = description.format(Some(DescribeFormatOptions::new().dirty_suffix(".dirty")))
+        let version = description.format(Some(DescribeFormatOptions::new().dirty_suffix("-dirty")))
             .chain_error(|| human("error formatting git version"))?;
         Ok(version)
     } else {
