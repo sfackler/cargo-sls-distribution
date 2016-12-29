@@ -33,14 +33,13 @@ const USAGE: &'static str = "
 Package a binary crate into a distribution tarball
 
 Usage: cargo distribution [options]
-       cargo distribution --help
 
 Options:
     -h, --help              Display this message
     -V, --version           Print version info and exit
     -j N, --jobs N          Number of parallel jobs, defaults to # of CPUs
     --bin NAME              Package this binary
-    --release                    Build artifacts in release mode, with optimizations
+    --release               Build artifacts in release mode, with optimizations
     --features FEATURES     Space separated list of features to include
     --all-features          Build all available features
     --no-default-features   Do not include the `default` feature
