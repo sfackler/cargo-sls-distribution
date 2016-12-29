@@ -1,5 +1,5 @@
 [root]
-name = "cargo-distribution"
+name = "cargo-sls-distribution"
 version = "0.1.0"
 dependencies = [
  "cargo 0.15.0 (registry+https://github.com/rust-lang/crates.io-index)",

@@ -32,7 +32,7 @@ mod shell_escape;
 const USAGE: &'static str = "
 Package a binary crate into a distribution tarball
 
-Usage: cargo distribution [options]
+Usage: cargo sls-distribution [options]
 
 Options:
     -h, --help              Display this message
