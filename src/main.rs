@@ -236,12 +236,9 @@ fn add_dir<W>(out: &mut tar::Builder<W>,
     where W: Write
 {
     for source in sources {
-        if !source.starts_with(source_path) {
-            continue;
+        if let Ok(prefix) = source.strip_prefix(source_path) {
+            add_file(out, source, &target_path.join(prefix))?;
         }
-
-        let path = source.strip_prefix(source_path).unwrap();
-        add_file(out, source, &target_path.join(path))?;
     }
 
     Ok(())
