@@ -8,12 +8,12 @@ extern crate serde_yaml;
 extern crate tar;
 extern crate toml;
 
-use cargo::core::{Source, Workspace};
 use cargo::core::package::Package;
+use cargo::core::{Source, Workspace};
 use cargo::ops::{self, CompileOptions, MessageFormat};
 use cargo::sources::PathSource;
-use cargo::util::important_paths::find_root_manifest_for_wd;
 use cargo::util::errors::ChainError;
+use cargo::util::important_paths::find_root_manifest_for_wd;
 use cargo::{Config, CliResult, human};
 use flate2::Compression;
 use flate2::write::GzEncoder;
@@ -22,8 +22,8 @@ use serde::Deserialize;
 use std::borrow::Cow;
 use std::fs::File;
 use std::io::{Read, Write, BufWriter};
-use std::time::UNIX_EPOCH;
 use std::path::{Path, PathBuf};
+use std::time::UNIX_EPOCH;
 
 use serde_types::{CargoToml, CargoDistribution, Manifest};
 
