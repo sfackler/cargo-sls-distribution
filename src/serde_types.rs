@@ -371,7 +371,7 @@ const _IMPL_DESERIALIZE_FOR_CargoDistribution: () =
              -> ::std::result::Result<CargoDistribution, __D::Error> where
              __D: _serde::de::Deserializer {
                 #[allow(non_camel_case_types)]
-                enum __Field { __field0, __field1, __field2, }
+                enum __Field { __field0, __field1, __field2, __field3, }
                 impl _serde::de::Deserialize for __Field {
                     #[inline]
                     fn deserialize<__D>(deserializer: &mut __D)
@@ -390,6 +390,7 @@ const _IMPL_DESERIALIZE_FOR_CargoDistribution: () =
                                     0usize => { Ok(__Field::__field0) }
                                     1usize => { Ok(__Field::__field1) }
                                     2usize => { Ok(__Field::__field2) }
+                                    3usize => { Ok(__Field::__field3) }
                                     _ =>
                                     Err(_serde::de::Error::invalid_value("expected a field")),
                                 }
@@ -403,6 +404,7 @@ const _IMPL_DESERIALIZE_FOR_CargoDistribution: () =
                                         Ok(__Field::__field1)
                                     }
                                     "args" => { Ok(__Field::__field2) }
+                                    "git_version" => { Ok(__Field::__field3) }
                                     _ =>
                                     Err(_serde::de::Error::unknown_field(value)),
                                 }
@@ -416,6 +418,9 @@ const _IMPL_DESERIALIZE_FOR_CargoDistribution: () =
                                         Ok(__Field::__field1)
                                     }
                                     b"args" => { Ok(__Field::__field2) }
+                                    b"git_version" => {
+                                        Ok(__Field::__field3)
+                                    }
                                     _ => {
                                         let value =
                                             ::std::string::String::from_utf8_lossy(value);
@@ -463,10 +468,19 @@ const _IMPL_DESERIALIZE_FOR_CargoDistribution: () =
                                     return Err(_serde::de::Error::invalid_length(2usize));
                                 }
                             };
+                        let __field3 =
+                            match try!(visitor . visit :: < bool > (  )) {
+                                Some(value) => { value }
+                                None => {
+                                    try!(visitor . end (  ));
+                                    return Err(_serde::de::Error::invalid_length(3usize));
+                                }
+                            };
                         try!(visitor . end (  ));
                         Ok(CargoDistribution{group: __field0,
                                              manifest_extensions: __field1,
-                                             args: __field2,})
+                                             args: __field2,
+                                             git_version: __field3,})
                     }
                     #[inline]
                     fn visit_map<__V>(&mut self, mut visitor: __V)
@@ -476,6 +490,7 @@ const _IMPL_DESERIALIZE_FOR_CargoDistribution: () =
                         let mut __field1: Option<HashMap<String, Value>> =
                             None;
                         let mut __field2: Option<Vec<String>> = None;
+                        let mut __field3: Option<bool> = None;
                         while let Some(key) =
                                   try!(visitor . visit_key :: < __Field > (
                                        )) {
@@ -508,6 +523,15 @@ const _IMPL_DESERIALIZE_FOR_CargoDistribution: () =
                                         Some(try!(visitor . visit_value :: <
                                                   Vec < String > > (  )));
                                 }
+                                __Field::__field3 => {
+                                    if __field3.is_some() {
+                                        return Err(<__V::Error as
+                                                       _serde::de::Error>::duplicate_field("git_version"));
+                                    }
+                                    __field3 =
+                                        Some(try!(visitor . visit_value :: <
+                                                  bool > (  )));
+                                }
                             }
                         }
                         try!(visitor . end (  ));
@@ -527,13 +551,19 @@ const _IMPL_DESERIALIZE_FOR_CargoDistribution: () =
                                 Some(__field2) => __field2,
                                 None => ::std::default::Default::default(),
                             };
+                        let __field3 =
+                            match __field3 {
+                                Some(__field3) => __field3,
+                                None => ::std::default::Default::default(),
+                            };
                         Ok(CargoDistribution{group: __field0,
                                              manifest_extensions: __field1,
-                                             args: __field2,})
+                                             args: __field2,
+                                             git_version: __field3,})
                     }
                 }
                 const FIELDS: &'static [&'static str] =
-                    &["group", "manifest_extensions", "args"];
+                    &["group", "manifest_extensions", "args", "git_version"];
                 deserializer.deserialize_struct("CargoDistribution", FIELDS,
                                                 __Visitor)
             }
@@ -543,6 +573,7 @@ pub struct CargoDistribution {
     pub group: String,
     pub manifest_extensions: HashMap<String, Value>,
     pub args: Vec<String>,
+    pub git_version: bool,
 }
 #[allow(non_upper_case_globals, unused_attributes, unused_qualifications)]
 const _IMPL_SERIALIZE_FOR_Manifest: () =

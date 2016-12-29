@@ -5,6 +5,7 @@ dependencies = [
  "cargo 0.15.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "docopt 0.6.86 (registry+https://github.com/rust-lang/crates.io-index)",
  "flate2 0.2.14 (registry+https://github.com/rust-lang/crates.io-index)",
+ "git2 0.6.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.22 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 0.8.21 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_yaml 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",

@@ -1,6 +1,7 @@
 extern crate cargo;
 extern crate docopt;
 extern crate flate2;
+extern crate git2;
 extern crate rustc_serialize;
 extern crate serde;
 extern crate serde_yaml;
@@ -16,6 +17,7 @@ use cargo::util::errors::ChainError;
 use cargo::{Config, CliResult, human};
 use flate2::Compression;
 use flate2::write::GzEncoder;
+use git2::{Repository, DescribeOptions, DescribeFormatOptions};
 use serde::Deserialize;
 use std::borrow::Cow;
 use std::fs::File;
@@ -117,6 +119,8 @@ fn real_main(options: Flags, config: &Config) -> CliResult<Option<()>> {
 
     let config = get_config(package)?;
 
+    let version = get_version(package, &config)?;
+
     let compilation = ops::compile(&ws, &opts)?;
 
     if compilation.binaries.len() != 1 {
@@ -124,7 +128,7 @@ fn real_main(options: Flags, config: &Config) -> CliResult<Option<()>> {
                                  compilation.binaries.len())).into());
     }
 
-    build_dist(package, &sources, config, &compilation.binaries[0])?;
+    build_dist(package, &sources, config, version, &compilation.binaries[0])?;
 
     Ok(None)
 }
@@ -145,13 +149,27 @@ fn get_config(package: &Package) -> CliResult<CargoDistribution> {
         .map_err(Into::into)
 }
 
+fn get_version(package: &Package, config: &CargoDistribution) -> CliResult<String> {
+    if config.git_version {
+        let repo = Repository::discover(package.root())
+            .chain_error(|| human("error discovering git repository"))?;
+        let description = repo.describe(DescribeOptions::new().describe_tags())
+            .chain_error(|| human("error describing git repository"))?;
+        let version = description.format(Some(DescribeFormatOptions::new().dirty_suffix(".dirty")))
+            .chain_error(|| human("error formatting git version"))?;
+        Ok(version)
+    } else {
+        Ok(package.version().to_string())
+    }
+}
+
 fn build_dist(package: &Package,
               sources: &[PathBuf],
               config: CargoDistribution,
+              version: String,
               binary_source: &Path)
               -> CliResult<()> {
     let name = package.name();
-    let version = package.version();
     let identifier = format!("{}-{}", name, version);
     let package_dir = package.root();
     let base = Path::new(&identifier);
@@ -168,7 +186,7 @@ fn build_dist(package: &Package,
         product_type: "service.v1".to_owned(),
         product_group: config.group,
         product_name: package.name().to_owned(),
-        product_version: package.version().to_string(),
+        product_version: version,
         extensions: config.manifest_extensions,
     };
     let manifest = serde_yaml::to_string(&manifest).unwrap();
