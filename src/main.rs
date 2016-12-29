@@ -19,7 +19,6 @@ use flate2::Compression;
 use flate2::write::GzEncoder;
 use git2::{Repository, DescribeOptions, DescribeFormatOptions};
 use serde::Deserialize;
-use std::borrow::Cow;
 use std::fs::File;
 use std::io::{Read, Write, BufWriter};
 use std::path::{Path, PathBuf};
@@ -195,7 +194,7 @@ fn build_dist(package: &Package,
     let binary_path = Path::new("service/bin").join(binary_source.file_name().unwrap());
     let args = config.args
         .into_iter()
-        .map(|s| shell_escape::escape(Cow::from(s)))
+        .map(|s| shell_escape::escape(s.into()))
         .collect::<Vec<_>>()
         .join(" ");
     let init_sh = INIT_SH
