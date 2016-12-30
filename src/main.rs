@@ -5,6 +5,7 @@ extern crate git2;
 extern crate rustc_serialize;
 extern crate serde;
 extern crate serde_yaml;
+extern crate shell_escape;
 extern crate tar;
 extern crate toml;
 
@@ -27,7 +28,6 @@ use std::time::UNIX_EPOCH;
 use serde_types::{CargoToml, CargoDistribution, Manifest};
 
 mod serde_types;
-mod shell_escape;
 
 const USAGE: &'static str = "
 Package a binary crate into a distribution tarball
@@ -128,7 +128,7 @@ fn real_main(options: Flags, config: &Config) -> CliResult<Option<()>> {
 
     let path = build_dist(package, &sources, config, version, &compilation.binaries[0])?;
 
-    if !options.flag_quiet {
+    if let Some(true) = options.flag_quiet {
         println!("{}", path.display());
     }
 
