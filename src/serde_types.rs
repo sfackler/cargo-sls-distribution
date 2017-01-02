@@ -273,7 +273,7 @@ const _IMPL_DESERIALIZE_FOR_CargoMetadata: () =
                              -> ::std::result::Result<__Field, __E> where
                              __E: _serde::de::Error {
                                 match value {
-                                    "distribution" => {
+                                    "sls-distribution" => {
                                         Ok(__Field::__field0)
                                     }
                                     _ => Ok(__Field::__ignore),
@@ -283,7 +283,7 @@ const _IMPL_DESERIALIZE_FOR_CargoMetadata: () =
                              -> ::std::result::Result<__Field, __E> where
                              __E: _serde::de::Error {
                                 match value {
-                                    b"distribution" => {
+                                    b"sls-distribution" => {
                                         Ok(__Field::__field0)
                                     }
                                     _ => Ok(__Field::__ignore),
@@ -313,7 +313,7 @@ const _IMPL_DESERIALIZE_FOR_CargoMetadata: () =
                                 }
                             };
                         try!(visitor . end (  ));
-                        Ok(CargoMetadata{distribution: __field0,})
+                        Ok(CargoMetadata{sls_distribution: __field0,})
                     }
                     #[inline]
                     fn visit_map<__V>(&mut self, mut visitor: __V)
@@ -327,7 +327,7 @@ const _IMPL_DESERIALIZE_FOR_CargoMetadata: () =
                                 __Field::__field0 => {
                                     if __field0.is_some() {
                                         return Err(<__V::Error as
-                                                       _serde::de::Error>::duplicate_field("distribution"));
+                                                       _serde::de::Error>::duplicate_field("sls-distribution"));
                                     }
                                     __field0 =
                                         Some(try!(visitor . visit_value :: <
@@ -346,20 +346,20 @@ const _IMPL_DESERIALIZE_FOR_CargoMetadata: () =
                             match __field0 {
                                 Some(__field0) => __field0,
                                 None =>
-                                try!(visitor . missing_field ( "distribution"
-                                     )),
+                                try!(visitor . missing_field (
+                                     "sls-distribution" )),
                             };
-                        Ok(CargoMetadata{distribution: __field0,})
+                        Ok(CargoMetadata{sls_distribution: __field0,})
                     }
                 }
-                const FIELDS: &'static [&'static str] = &["distribution"];
+                const FIELDS: &'static [&'static str] = &["sls_distribution"];
                 deserializer.deserialize_struct("CargoMetadata", FIELDS,
                                                 __Visitor)
             }
         }
     };
 pub struct CargoMetadata {
-    pub distribution: CargoDistribution,
+    pub sls_distribution: CargoDistribution,
 }
 #[allow(non_upper_case_globals, unused_attributes, unused_qualifications)]
 const _IMPL_DESERIALIZE_FOR_CargoDistribution: () =

@@ -13,7 +13,8 @@ pub struct CargoPackage {
 
 #[derive(Deserialize)]
 pub struct CargoMetadata {
-    pub distribution: CargoDistribution,
+    #[serde(rename = "sls-distribution")]
+    pub sls_distribution: CargoDistribution,
 }
 
 #[derive(Deserialize)]

@@ -128,8 +128,9 @@ fn real_main(options: Flags, config: &Config) -> CliResult<Option<()>> {
 
     let path = build_dist(package, &sources, config, version, &compilation.binaries[0])?;
 
-    if let Some(true) = options.flag_quiet {
-        println!("{}", path.display());
+    match options.flag_quiet {
+        Some(true) => {}
+        _ => println!("{}", path.display()),
     }
 
     Ok(None)
@@ -147,7 +148,7 @@ fn get_config(package: &Package) -> CliResult<CargoDistribution> {
 
     CargoToml::deserialize(&mut toml::Decoder::new(toml::Value::Table(table)))
         .chain_error(|| human("error deserializing Cargo.toml"))
-        .map(|t| t.package.metadata.distribution)
+        .map(|t| t.package.metadata.sls_distribution)
         .map_err(Into::into)
 }
 
