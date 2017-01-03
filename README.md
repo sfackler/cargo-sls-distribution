@@ -51,7 +51,7 @@ git_version = true
 
 # A map of extended manifest attributes, as specified in https://github.com/palantir/sls-spec/blob/master/manifest.md
 # Defaults to an empty map.
-metadata_extensions = { key = "value" }
+manifest_extensions = { key = "value" }
 ```
 
 The contents of the `deployment`, `service`, and `var` directories will be added to the archive if present, though this
