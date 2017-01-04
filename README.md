@@ -24,7 +24,7 @@ Packages are produced as a gzipped tarball named `[service-name]-[service-versio
 Install via Cargo and run as a subcommand:
 
 ```
-$ cargo install --git https://github.com/sfackler/cargo-sls-distribution
+$ cargo install --git https://github.com/sfackler/cargo-sls-distribution cargo-sls-distribution
     ...
 $ cargo sls-distribution
 ```
