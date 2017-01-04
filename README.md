@@ -1,10 +1,11 @@
 # cargo-sls-distribution
 
-A Cargo subcommand which packages binary crates for easy distribution and execution. The package layout is designed to
-split immutable files from mutable state and configuration.
+A Cargo subcommand which packages binary crates in a format compatible with the [SLS specification][SLS] for easy
+distribution and execution. The package layout is designed to split immutable files from mutable state and
+configuration.
 
 The crate is packaged with a simple daemonizing script, a manifest describing the content of the package, and other
-user-defined contents:
+user-defined content:
 
 ```
 [service-name]-[service-version]/
@@ -18,6 +19,8 @@ user-defined contents:
 ```
 
 Packages are produced as a gzipped tarball named `[service-name]-[service-version].sls.tgz`.
+
+[SLS]: https://github.com/palantir/sls-spec
 
 ## Usage
 
@@ -49,7 +52,7 @@ args = ["var/conf/server.yml"]
 # Defaults to false.
 git_version = true
 
-# A map of extended manifest attributes, as specified in https://github.com/palantir/sls-spec/blob/master/manifest.md
+# A map of extended manifest attributes.
 # Defaults to an empty map.
 manifest_extensions = { key = "value" }
 ```
