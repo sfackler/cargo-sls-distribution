@@ -6,6 +6,7 @@ license = "Apache-2.0"
 description = "A Cargo subcommand which packages a binary crate into a distribution archive"
 repository = "https://github.com/sfackler/cargo-sls-distribution"
 readme = "README.md"
+exclude = ["codegen", "test-service"]
 
 [dependencies]
 cargo = "0.15"
