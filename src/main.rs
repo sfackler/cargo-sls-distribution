@@ -11,7 +11,7 @@ extern crate toml;
 
 use cargo::core::package::Package;
 use cargo::core::{Source, Workspace};
-use cargo::ops::{self, CompileOptions, MessageFormat};
+use cargo::ops::{self, CompileOptions, MessageFormat, Packages};
 use cargo::sources::PathSource;
 use cargo::util::errors::ChainError;
 use cargo::util::important_paths::find_root_manifest_for_wd;
@@ -99,7 +99,7 @@ fn real_main(options: Flags, config: &Config) -> CliResult<Option<()>> {
         features: &options.flag_features,
         all_features: options.flag_all_features,
         no_default_features: options.flag_no_default_features,
-        spec: &[],
+        spec: Packages::Packages(&[]),
         mode: ops::CompileMode::Build,
         release: options.flag_release,
         filter: ops::CompileFilter::new(false, &options.flag_bin, &[], &[], &[]),
