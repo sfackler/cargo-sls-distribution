@@ -1,5 +1,6 @@
 extern crate cargo;
 extern crate docopt;
+extern crate env_logger;
 extern crate flate2;
 extern crate git2;
 extern crate rustc_serialize;
@@ -11,15 +12,17 @@ extern crate toml;
 
 use cargo::core::package::Package;
 use cargo::core::{Source, Workspace};
+use cargo::core::shell::{Verbosity, ColorConfig};
 use cargo::ops::{self, CompileOptions, MessageFormat, Packages};
 use cargo::sources::PathSource;
 use cargo::util::errors::ChainError;
 use cargo::util::important_paths::find_root_manifest_for_wd;
-use cargo::{Config, CliResult, human};
+use cargo::{Config, CargoResult, CliResult, human};
 use flate2::Compression;
 use flate2::write::GzEncoder;
 use git2::{Repository, DescribeOptions, DescribeFormatOptions};
 use serde::Deserialize;
+use std::env;
 use std::fs::File;
 use std::io::{Read, Write, BufWriter};
 use std::path::{Path, PathBuf};
@@ -75,13 +78,35 @@ struct Flags {
 }
 
 fn main() {
-    cargo::execute_main_without_stdin(real_main, false, USAGE);
+    env_logger::init().unwrap();
+
+    let config = match Config::default() {
+        Ok(cfg) => cfg,
+        Err(e) => {
+            let mut shell = cargo::shell(Verbosity::Verbose, ColorConfig::Auto);
+            cargo::handle_cli_error(e.into(), &mut shell)
+        }
+    };
+
+    let result = (|| {
+        let args: Vec<_> = try!(env::args_os().map(|s| {
+            s.into_string().map_err(|s| {
+                human(format!("invalid unicode in argument: {:?}", s))
+            })
+        }).collect());
+        cargo::call_main_without_stdin(real_main, &config, USAGE, &args, false)
+    })();
+
+    match result {
+        Err(e) => cargo::handle_cli_error(e, &mut *config.shell()),
+        Ok(()) => {},
+    }
 }
 
-fn real_main(options: Flags, config: &Config) -> CliResult<Option<()>> {
+fn real_main(options: Flags, config: &Config) -> CliResult {
     if options.flag_version {
         println!("cargo-distribution {}", env!("CARGO_PKG_VERSION"));
-        return Ok(None);
+        return Ok(());
     }
 
     config.configure(options.flag_verbose,
@@ -133,10 +158,10 @@ fn real_main(options: Flags, config: &Config) -> CliResult<Option<()>> {
         _ => println!("{}", path.display()),
     }
 
-    Ok(None)
+    Ok(())
 }
 
-fn get_config(package: &Package) -> CliResult<CargoDistribution> {
+fn get_config(package: &Package) -> CargoResult<CargoDistribution> {
     let mut config = String::new();
     File::open(package.manifest_path())
         .chain_error(|| human("error opening Cargo.toml"))?
@@ -152,7 +177,7 @@ fn get_config(package: &Package) -> CliResult<CargoDistribution> {
         .map_err(Into::into)
 }
 
-fn get_version(package: &Package, config: &CargoDistribution) -> CliResult<String> {
+fn get_version(package: &Package, config: &CargoDistribution) -> CargoResult<String> {
     if config.git_version {
         let repo = Repository::discover(package.root())
             .chain_error(|| human("error discovering git repository"))?;
@@ -171,7 +196,7 @@ fn build_dist(package: &Package,
               config: CargoDistribution,
               version: String,
               binary_source: &Path)
-              -> CliResult<PathBuf> {
+              -> CargoResult<PathBuf> {
     let name = package.name();
     let identifier = format!("{}-{}", name, version);
     let package_dir = package.root();
@@ -221,7 +246,7 @@ fn build_dist(package: &Package,
     Ok(out_path)
 }
 
-fn add_file<W>(out: &mut tar::Builder<W>, file_path: &Path, target_path: &Path) -> CliResult<()>
+fn add_file<W>(out: &mut tar::Builder<W>, file_path: &Path, target_path: &Path) -> CargoResult<()>
     where W: Write
 {
     let mut file = File::open(file_path)
@@ -233,7 +258,7 @@ fn add_file<W>(out: &mut tar::Builder<W>, file_path: &Path, target_path: &Path) 
 fn add_string<W>(out: &mut tar::Builder<W>,
                  contents: &str,
                  target_path: &Path,
-                 mode: u32) -> CliResult<()>
+                 mode: u32) -> CargoResult<()>
     where W: Write
 {
     let mut header = tar::Header::new_gnu();
@@ -253,7 +278,7 @@ fn add_dir<W>(out: &mut tar::Builder<W>,
               sources: &[PathBuf],
               source_path: &Path,
               target_path: &Path)
-              -> CliResult<()>
+              -> CargoResult<()>
     where W: Write
 {
     for source in sources {
