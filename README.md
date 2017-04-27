@@ -42,7 +42,7 @@ Configuration is specified in the `package.metadata.sls-distribution` section of
 [package.metadata.sls-distribution]
 # A Maven-style group name for the distribution.
 # Required.
-group = "com.foobar"
+product-group = "com.foobar"
 
 # A list of command line arguments to supply to the crate when running it.
 # Defaults to an empty list.
@@ -54,7 +54,13 @@ git_version = true
 
 # A map of extended manifest attributes.
 # Defaults to an empty map.
-manifest_extensions = { key = "value" }
+manifest-extensions = { key = "value" }
+
+# An array information about services that this depends on.
+[[package.metadata.sls-distribution.product-dependencies]]
+product-group = "com.foobar"
+product-name = "my-service"
+minimum-version = "1.1.0"
 ```
 
 The contents of the `deployment`, `service`, and `var` directories will be added to the archive if present, though this
