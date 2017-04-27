@@ -6,17 +6,18 @@ license = "Apache-2.0"
 description = "A Cargo subcommand which packages a binary crate into a distribution archive"
 repository = "https://github.com/sfackler/cargo-sls-distribution"
 readme = "README.md"
-exclude = ["codegen", "test-service"]
+exclude = ["test-service"]
 
 [dependencies]
-cargo = "0.17"
-docopt = "0.6"
+cargo = "0.18"
+docopt = "0.7"
 env_logger = "0.4"
 flate2 = "0.2"
 git2 = { version = "0.6", default_features = false }
 rustc-serialize = "0.3"
-serde = "0.8"
-serde_yaml = "0.5"
+serde = "0.9"
+serde_derive = "0.9"
+serde_yaml = "0.6"
 shell-escape = "0.1.1"
 tar = { version = "0.4", default_features = false }
-toml = { version = "0.2", default_features = false, features = ["serde"] }
+toml = "0.3"

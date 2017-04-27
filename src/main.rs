@@ -10,27 +10,27 @@ extern crate shell_escape;
 extern crate tar;
 extern crate toml;
 
-use cargo::core::package::Package;
+#[macro_use]
+extern crate serde_derive;
+
+use cargo::{Config, CargoResult, CliResult, human};
 use cargo::core::{Source, Workspace};
+use cargo::core::package::Package;
 use cargo::core::shell::{Verbosity, ColorConfig};
 use cargo::ops::{self, CompileOptions, MessageFormat, Packages};
 use cargo::sources::PathSource;
 use cargo::util::errors::ChainError;
 use cargo::util::important_paths::find_root_manifest_for_wd;
-use cargo::{Config, CargoResult, CliResult, human};
 use flate2::Compression;
 use flate2::write::GzEncoder;
 use git2::{Repository, DescribeOptions, DescribeFormatOptions};
-use serde::Deserialize;
+use serde_yaml::Value;
+use std::collections::HashMap;
 use std::env;
 use std::fs::File;
 use std::io::{Read, Write, BufWriter};
 use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
-
-use serde_types::{CargoToml, CargoDistribution, Manifest};
-
-mod serde_types;
 
 const USAGE: &'static str = "
 Package a binary crate into a distribution tarball
@@ -77,6 +77,45 @@ struct Flags {
     flag_locked: bool,
 }
 
+#[derive(Deserialize)]
+pub struct CargoToml {
+    pub package: CargoPackage,
+}
+
+#[derive(Deserialize)]
+pub struct CargoPackage {
+    pub metadata: CargoMetadata,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct CargoMetadata {
+    pub sls_distribution: CargoDistribution,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CargoDistribution {
+    pub group: String,
+    #[serde(default)]
+    pub args: Vec<String>,
+    #[serde(default)]
+    pub git_version: bool,
+    #[serde(default)]
+    pub manifest_extensions: HashMap<String, Value>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct Manifest {
+    pub manifest_version: String,
+    pub product_type: String,
+    pub product_group: String,
+    pub product_name: String,
+    pub product_version: String,
+    pub extensions: HashMap<String, Value>,
+}
+
 fn main() {
     env_logger::init().unwrap();
 
@@ -84,22 +123,23 @@ fn main() {
         Ok(cfg) => cfg,
         Err(e) => {
             let mut shell = cargo::shell(Verbosity::Verbose, ColorConfig::Auto);
-            cargo::handle_cli_error(e.into(), &mut shell)
+            cargo::exit_with_error(e.into(), &mut shell)
         }
     };
 
     let result = (|| {
-        let args: Vec<_> = try!(env::args_os().map(|s| {
-            s.into_string().map_err(|s| {
-                human(format!("invalid unicode in argument: {:?}", s))
+        let args: Vec<_> = try!(env::args_os()
+            .map(|s| {
+                s.into_string().map_err(|s| human(format!("invalid unicode in argument: {:?}", s)))
             })
-        }).collect());
-        cargo::call_main_without_stdin(real_main, &config, USAGE, &args, false)
+            .collect());
+        let rest = &args;
+        cargo::call_main_without_stdin(real_main, &config, USAGE, rest, true)
     })();
 
     match result {
-        Err(e) => cargo::handle_cli_error(e, &mut *config.shell()),
-        Ok(()) => {},
+        Err(e) => cargo::exit_with_error(e, &mut *config.shell()),
+        Ok(()) => {}
     }
 }
 
@@ -168,13 +208,10 @@ fn get_config(package: &Package) -> CargoResult<CargoDistribution> {
         .read_to_string(&mut config)
         .chain_error(|| human("error reading Cargo.toml"))?;
 
-    let mut parser = toml::Parser::new(&config);
-    let table = parser.parse().ok_or_else(|| human("error parsing Cargo.toml"))?;
+    let config: CargoToml = toml::from_str(&config)
+        .map_err(|_| human("error parsing Cargo.toml"))?;
 
-    CargoToml::deserialize(&mut toml::Decoder::new(toml::Value::Table(table)))
-        .chain_error(|| human("error deserializing Cargo.toml"))
-        .map(|t| t.package.metadata.sls_distribution)
-        .map_err(Into::into)
+    Ok(config.package.metadata.sls_distribution)
 }
 
 fn get_version(package: &Package, config: &CargoDistribution) -> CargoResult<String> {
