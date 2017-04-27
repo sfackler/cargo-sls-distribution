@@ -95,14 +95,31 @@ pub struct CargoMetadata {
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
+#[serde(rename_all = "kebab-case")]
 pub struct CargoDistribution {
-    pub group: String,
+    pub product_group: String,
     #[serde(default)]
     pub args: Vec<String>,
     #[serde(default)]
     pub git_version: bool,
     #[serde(default)]
     pub manifest_extensions: HashMap<String, Value>,
+    #[serde(default)]
+    pub product_dependencies: Vec<ProductDependency>,
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "kebab-case")]
+pub struct ProductDependency {
+    product_group: String,
+    product_name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    minimum_version: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    maximum_version: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    recommended_version: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -134,7 +151,7 @@ fn main() {
             })
             .collect());
         let rest = &args;
-        cargo::call_main_without_stdin(real_main, &config, USAGE, rest, true)
+        cargo::call_main_without_stdin(real_main, &config, USAGE, rest, false)
     })();
 
     match result {
@@ -145,15 +162,16 @@ fn main() {
 
 fn real_main(options: Flags, config: &Config) -> CliResult {
     if options.flag_version {
-        println!("cargo-distribution {}", env!("CARGO_PKG_VERSION"));
+        println!("cargo-sls-distribution {}", env!("CARGO_PKG_VERSION"));
         return Ok(());
     }
 
-    config.configure(options.flag_verbose,
-                     options.flag_quiet,
-                     &options.flag_color,
-                     options.flag_frozen,
-                     options.flag_locked)?;
+    config
+        .configure(options.flag_verbose,
+                   options.flag_quiet,
+                   &options.flag_color,
+                   options.flag_frozen,
+                   options.flag_locked)?;
 
     let root = find_root_manifest_for_wd(options.flag_manifest_path, config.cwd())?;
 
@@ -188,7 +206,8 @@ fn real_main(options: Flags, config: &Config) -> CliResult {
 
     if compilation.binaries.len() != 1 {
         return Err(human(format!("expected a single binary, but saw {}",
-                                 compilation.binaries.len())).into());
+                                 compilation.binaries.len()))
+                           .into());
     }
 
     let path = build_dist(package, &sources, config, version, &compilation.binaries[0])?;
@@ -209,7 +228,7 @@ fn get_config(package: &Package) -> CargoResult<CargoDistribution> {
         .chain_error(|| human("error reading Cargo.toml"))?;
 
     let config: CargoToml = toml::from_str(&config)
-        .map_err(|_| human("error parsing Cargo.toml"))?;
+        .map_err(|e| human(format!("error parsing Cargo.toml: {}", e)))?;
 
     Ok(config.package.metadata.sls_distribution)
 }
@@ -220,7 +239,8 @@ fn get_version(package: &Package, config: &CargoDistribution) -> CargoResult<Str
             .chain_error(|| human("error discovering git repository"))?;
         let description = repo.describe(DescribeOptions::new().describe_tags())
             .chain_error(|| human("error describing git repository"))?;
-        let version = description.format(Some(DescribeFormatOptions::new().dirty_suffix("-dirty")))
+        let version = description
+            .format(Some(DescribeFormatOptions::new().dirty_suffix("-dirty")))
             .chain_error(|| human("error formatting git version"))?;
         Ok(version)
     } else {
@@ -239,26 +259,39 @@ fn build_dist(package: &Package,
     let package_dir = package.root();
     let base = Path::new(&identifier);
 
-    let out_path = binary_source.parent().unwrap().join(format!("{}.sls.tgz", identifier));
+    let out_path = binary_source
+        .parent()
+        .unwrap()
+        .join(format!("{}.sls.tgz", identifier));
     let out = File::create(&out_path)
         .chain_error(|| human(format!("error creating tarball {}", out_path.display())))?;
     let out = BufWriter::new(out);
     let out = GzEncoder::new(out, Compression::Default);
     let mut out = tar::Builder::new(out);
 
+    let mut extensions = config.manifest_extensions;
+    if !config.product_dependencies.is_empty() {
+        extensions.insert("product-dependencies".to_string(),
+                          serde_yaml::to_value(config.product_dependencies).unwrap());
+    }
+
     let manifest = Manifest {
-        manifest_version: "1.0".to_owned(),
+        manifest_version: "1.1".to_owned(),
         product_type: "service.v1".to_owned(),
-        product_group: config.group,
+        product_group: config.product_group,
         product_name: package.name().to_owned(),
         product_version: version,
-        extensions: config.manifest_extensions,
+        extensions: extensions,
     };
     let manifest = serde_yaml::to_string(&manifest).unwrap();
-    add_string(&mut out, &manifest, &base.join("deployment/manifest.yml"), 0o644)?;
+    add_string(&mut out,
+               &manifest,
+               &base.join("deployment/manifest.yml"),
+               0o644)?;
 
     let binary_path = Path::new("service/bin").join(binary_source.file_name().unwrap());
-    let args = config.args
+    let args = config
+        .args
         .into_iter()
         .map(|s| shell_escape::escape(s.into()))
         .collect::<Vec<_>>()
@@ -271,9 +304,18 @@ fn build_dist(package: &Package,
 
     add_file(&mut out, binary_source, &base.join(&binary_path))?;
 
-    add_dir(&mut out, sources, &package_dir.join("var"), &base.join("var"))?;
-    add_dir(&mut out, sources, &package_dir.join("deployment"), &base.join("deployment"))?;
-    add_dir(&mut out, sources, &package_dir.join("service"), &base.join("service"))?;
+    add_dir(&mut out,
+            sources,
+            &package_dir.join("var"),
+            &base.join("var"))?;
+    add_dir(&mut out,
+            sources,
+            &package_dir.join("deployment"),
+            &base.join("deployment"))?;
+    add_dir(&mut out,
+            sources,
+            &package_dir.join("service"),
+            &base.join("service"))?;
 
     out.into_inner()
         .and_then(|w| w.finish())
@@ -286,20 +328,25 @@ fn build_dist(package: &Package,
 fn add_file<W>(out: &mut tar::Builder<W>, file_path: &Path, target_path: &Path) -> CargoResult<()>
     where W: Write
 {
-    let mut file = File::open(file_path)
-        .chain_error(|| human(format!("error opening file {}", file_path.display())))?;
-    out.append_file(target_path, &mut file).chain_error(|| human("error writing tarball"))?;
+    let mut file =
+        File::open(file_path)
+            .chain_error(|| human(format!("error opening file {}", file_path.display())))?;
+    out.append_file(target_path, &mut file)
+        .chain_error(|| human("error writing tarball"))?;
     Ok(())
 }
 
 fn add_string<W>(out: &mut tar::Builder<W>,
                  contents: &str,
                  target_path: &Path,
-                 mode: u32) -> CargoResult<()>
+                 mode: u32)
+                 -> CargoResult<()>
     where W: Write
 {
     let mut header = tar::Header::new_gnu();
-    header.set_path(target_path).chain_error(|| human("error writing tarball"))?;
+    header
+        .set_path(target_path)
+        .chain_error(|| human("error writing tarball"))?;
     header.set_size(contents.len() as u64);
     header.set_entry_type(tar::EntryType::file());
     header.set_mtime(UNIX_EPOCH.elapsed().unwrap().as_secs());

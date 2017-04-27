@@ -5,8 +5,13 @@ authors = ["Steven Fackler <sfackler@gmail.com>"]
 exclude = ["var/data/*"]
 
 [package.metadata.sls-distribution]
-group = "com.sfackler.test"
+product-group = "com.sfackler.test"
 args = ["var/conf/server.yml", "foo bar"]
-manifest_extensions = { foo = "bar", fizz = [1, 2, 3] }
+manifest-extensions = { foo = "bar", fizz = [1, 2, 3] }
+
+[[package.metadata.sls-distribution.product-dependencies]]
+product-group = "com.sfackler.test"
+product-name = "test-dependency"
+minimum-version = "1.0.0"
 
 [dependencies]
