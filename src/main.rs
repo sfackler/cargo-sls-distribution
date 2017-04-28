@@ -276,7 +276,7 @@ fn build_dist(package: &Package,
     }
 
     let manifest = Manifest {
-        manifest_version: "1.1".to_owned(),
+        manifest_version: "1.0".to_owned(),
         product_type: "service.v1".to_owned(),
         product_group: config.product_group,
         product_name: package.name().to_owned(),
