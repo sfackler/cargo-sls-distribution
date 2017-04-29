@@ -27,7 +27,7 @@ Packages are produced as a gzipped tarball named `[service-name]-[service-versio
 Install via Cargo and run as a subcommand:
 
 ```
-$ cargo install --git https://github.com/sfackler/cargo-sls-distribution cargo-sls-distribution
+$ cargo install cargo-sls-distribution
     ...
 $ cargo sls-distribution
 ```
@@ -50,7 +50,7 @@ args = ["var/conf/server.yml"]
 
 # If set, the service version will be derived from `git describe` rather than the Cargo package version.
 # Defaults to false.
-git_version = true
+git-version = true
 
 # A map of extended manifest attributes.
 # Defaults to an empty map.
