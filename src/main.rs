@@ -59,7 +59,7 @@ Options:
 const INIT_SH: &'static str = include_str!("init.sh");
 
 mod errors {
-    error_chain! {}
+    error_chain!{}
 }
 
 #[derive(RustcDecodable)]
@@ -178,7 +178,8 @@ fn real_main() -> Result<()> {
 
     let artifacts = build(&flags, &cargo)?;
     if artifacts.len() != 1 {
-        bail!("expected a single binary artifact, but got {}", artifacts.len());
+        bail!("expected a single binary artifact, but got {}",
+              artifacts.len());
     }
 
     let manifest_path = get_manifest_path(&flags, &cargo)?;
@@ -246,8 +247,7 @@ fn build(flags: &Flags, cargo: &OsStr) -> Result<Vec<Artifact>> {
         command.arg("--locked");
     }
 
-    let status = command.status()
-        .chain_err(|| "error running cargo")?;
+    let status = command.status().chain_err(|| "error running cargo")?;
     if !status.success() {
         bail!("cargo build returned returned {}", status);
     }
@@ -283,7 +283,9 @@ fn build(flags: &Flags, cargo: &OsStr) -> Result<Vec<Artifact>> {
         command.arg("--manifest-path").arg(manifest_path);
     }
 
-    let output = command.spawn().and_then(|c| c.wait_with_output())
+    let output = command
+        .spawn()
+        .and_then(|c| c.wait_with_output())
         .chain_err(|| "error running cargo")?;
     if !output.status.success() {
         bail!("cargo build returned {}", output.status);
@@ -308,10 +310,7 @@ fn build(flags: &Flags, cargo: &OsStr) -> Result<Vec<Artifact>> {
     Ok(artifacts)
 }
 
-fn get_package_files(flags: &Flags,
-                     project_root: &Path,
-                     cargo: &OsStr)
-                     -> Result<Vec<PathBuf>> {
+fn get_package_files(flags: &Flags, project_root: &Path, cargo: &OsStr) -> Result<Vec<PathBuf>> {
     let mut command = Command::new(cargo);
     command
         .arg("package")
@@ -337,7 +336,9 @@ fn get_package_files(flags: &Flags,
         command.arg("--locked");
     }
 
-    let output = command.spawn().and_then(|c| c.wait_with_output())
+    let output = command
+        .spawn()
+        .and_then(|c| c.wait_with_output())
         .chain_err(|| "error running cargo")?;
     if !output.status.success() {
         bail!("cargo package returned {}", output.status);
@@ -356,7 +357,9 @@ fn get_manifest_path(flags: &Flags, cargo: &OsStr) -> Result<PathBuf> {
         command.arg("--manifest-path").arg(manifest_path);
     }
 
-    let output = command.spawn().and_then(|c| c.wait_with_output())
+    let output = command
+        .spawn()
+        .and_then(|c| c.wait_with_output())
         .chain_err(|| "error running cargo")?;
     if !output.status.success() {
         bail!("cargo locate-project returned {}", output.status);
@@ -373,13 +376,10 @@ fn get_config(manifest_path: &Path) -> Result<CargoToml> {
         .and_then(|mut f| f.read_to_string(&mut config))
         .chain_err(|| "error reading Cargo.toml")?;
 
-    toml::from_str(&config)
-        .chain_err(|| "error parsing Cargo.toml")
+    toml::from_str(&config).chain_err(|| "error parsing Cargo.toml")
 }
 
-fn get_version(project_root: &Path,
-               config: &CargoToml)
-               -> Result<String> {
+fn get_version(project_root: &Path, config: &CargoToml) -> Result<String> {
     if config.package.metadata.sls_distribution.git_version {
         let repo = Repository::discover(project_root)
             .chain_err(|| "error discovering git repository")?;
@@ -418,7 +418,8 @@ fn build_dist(artifact: &Artifact,
     let sls_distribution = config.package.metadata.sls_distribution;
     let mut extensions = sls_distribution.manifest_extensions;
     if !sls_distribution.product_dependencies.is_empty() {
-        extensions.insert("product-dependencies".to_string(), serde_yaml::to_value(sls_distribution.product_dependencies).unwrap());
+        extensions.insert("product-dependencies".to_string(),
+                          serde_yaml::to_value(sls_distribution.product_dependencies).unwrap());
     }
 
     let manifest = Manifest {
@@ -474,9 +475,8 @@ fn build_dist(artifact: &Artifact,
 fn add_file<W>(out: &mut tar::Builder<W>, file_path: &Path, target_path: &Path) -> Result<()>
     where W: Write
 {
-    let mut file =
-        File::open(file_path)
-            .chain_err(|| format!("error opening file {}", file_path.display()))?;
+    let mut file = File::open(file_path)
+        .chain_err(|| format!("error opening file {}", file_path.display()))?;
     out.append_file(target_path, &mut file)
         .chain_err(|| "error writing tarball")?;
     Ok(())
