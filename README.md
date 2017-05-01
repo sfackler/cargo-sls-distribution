@@ -15,6 +15,9 @@ user-defined content:
         bin/
             [service-name]                # crate executable
             init.sh                       # daemonizing script
+        monitoring/
+            bin/
+                check.sh                  # monitoring script
     var/                                  # application configuration and data
 ```
 
@@ -46,7 +49,11 @@ product-group = "com.foobar"
 
 # A list of command line arguments to supply to the crate when running it.
 # Defaults to an empty list.
-args = ["var/conf/server.yml"]
+args = ["server", "var/conf/server.yml"]
+
+# A list of command line arguments to supply to the crate when checking its status.
+# If not provided, no monitoring script will be generated.
+check-args = ["check", "var/conf/server.yml"]
 
 # If set, the service version will be derived from `git describe` rather than the Cargo package version.
 # Defaults to false.

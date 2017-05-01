@@ -57,6 +57,7 @@ Options:
 ";
 
 const INIT_SH: &'static str = include_str!("init.sh");
+const CHECK_SH: &'static str = include_str!("check.sh");
 
 mod errors {
     error_chain!{}
@@ -124,6 +125,7 @@ struct SlsDistribution {
     product_group: String,
     #[serde(default)]
     args: Vec<String>,
+    check_args: Option<Vec<String>>,
     #[serde(default)]
     git_version: bool,
     #[serde(default)]
@@ -437,15 +439,30 @@ fn build_dist(artifact: &Artifact,
                0o644)?;
 
     let binary_path = Path::new("service/bin").join(artifact.path.file_name().unwrap());
-    let args = sls_distribution
+    let start_args = sls_distribution
         .args
         .into_iter()
         .map(|s| shell_escape::escape(s.into()))
         .collect::<Vec<_>>()
         .join(" ");
+    let check_args = match sls_distribution.check_args {
+        Some(check_args) => {
+            add_string(&mut out,
+                       CHECK_SH,
+                       &base.join("service/monitoring/bin/check.sh"),
+                       0o755)?;
+            check_args
+                .into_iter()
+                .map(|s| shell_escape::escape(s.into()))
+                .collect::<Vec<_>>()
+                .join(" ")
+        }
+        None => "".to_string(),
+    };
     let init_sh = INIT_SH
         .replace("@bin@", &binary_path.display().to_string())
-        .replace("@args@", &args)
+        .replace("@start_args@", &start_args)
+        .replace("@check_args@", &check_args)
         .replace("@service@", &name);
     add_string(&mut out, &init_sh, &base.join("service/bin/init.sh"), 0o755)?;
 
