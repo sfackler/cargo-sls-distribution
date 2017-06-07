@@ -2,7 +2,6 @@ extern crate docopt;
 extern crate env_logger;
 extern crate flate2;
 extern crate git2;
-extern crate rustc_serialize;
 extern crate serde;
 extern crate serde_json;
 extern crate serde_yaml;
@@ -63,7 +62,7 @@ mod errors {
     error_chain!{}
 }
 
-#[derive(RustcDecodable)]
+#[derive(Deserialize)]
 struct Flags {
     flag_jobs: Option<u32>,
     flag_bin: Vec<String>,
@@ -173,7 +172,7 @@ fn real_main() -> Result<()> {
     let flags: Flags = Docopt::new(USAGE)
         .map(|d| d.help(true))
         .map(|d| d.version(Some(format!("cargo-sls-distribution {}", env!("CARGO_PKG_VERSION")))))
-        .and_then(|d| d.decode())
+        .and_then(|d| d.deserialize())
         .unwrap_or_else(|e| e.exit());
 
     let cargo = env::var_os("CARGO").unwrap_or_else(|| OsString::from("cargo"));

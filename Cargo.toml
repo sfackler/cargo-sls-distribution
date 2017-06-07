@@ -9,13 +9,12 @@ readme = "README.md"
 exclude = ["test-service"]
 
 [dependencies]
-docopt = "0.7"
+docopt = "0.8"
 env_logger = "0.4"
 error-chain = "0.10"
 flate2 = "0.2"
 git2 = { version = "0.6", default_features = false }
 log = "0.3"
-rustc-serialize = "0.3"
 serde = "1.0"
 serde_derive = "1.0"
 serde_json = "1.0"
