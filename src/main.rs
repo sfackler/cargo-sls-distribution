@@ -90,7 +90,7 @@ enum BuildMessage {
 
 #[derive(Deserialize)]
 struct TargetMetadata {
-    crate_types: Vec<String>,
+    kind: Vec<String>,
     name: String,
 }
 
@@ -216,9 +216,7 @@ fn build(flags: &Flags, cargo: &OsStr) -> Result<Vec<Artifact>> {
         command.arg("--release");
     }
     if !flags.flag_features.is_empty() {
-        command
-            .arg("--features")
-            .arg(flags.flag_features.join(" "));
+        command.arg("--features").arg(flags.flag_features.join(" "));
     }
     if flags.flag_all_features {
         command.arg("--all-features");
@@ -267,9 +265,7 @@ fn build(flags: &Flags, cargo: &OsStr) -> Result<Vec<Artifact>> {
         command.arg("--release");
     }
     if !flags.flag_features.is_empty() {
-        command
-            .arg("--features")
-            .arg(flags.flag_features.join(" "));
+        command.arg("--features").arg(flags.flag_features.join(" "));
     }
     if flags.flag_all_features {
         command.arg("--all-features");
@@ -298,7 +294,7 @@ fn build(flags: &Flags, cargo: &OsStr) -> Result<Vec<Artifact>> {
             Ok(BuildMessage::CompilerArtifact {
                    ref target,
                    ref mut filenames,
-               }) if target.crate_types == ["bin"] => {
+               }) if target.kind == ["bin"] => {
                 let artifact = Artifact {
                     name: target.name.clone(),
                     path: filenames.pop().unwrap().into(),
