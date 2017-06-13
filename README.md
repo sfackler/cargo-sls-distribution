@@ -63,7 +63,7 @@ git-version = true
 # Defaults to an empty map.
 manifest-extensions = { key = "value" }
 
-# An array information about services that this depends on.
+# An array of information about services that this depends on.
 [[package.metadata.sls-distribution.product-dependencies]]
 product-group = "com.foobar"
 product-name = "my-service"
