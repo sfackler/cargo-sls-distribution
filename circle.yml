@@ -10,14 +10,13 @@ jobs:
       - run: DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends cmake
       - restore_cache:
           key: registry
-      - run: cargo generate-lockfile
+      - restore_cache:
+          key: dependencies-{{ checksum "Cargo.lock" }}
+      - run: cargo build
       - save_cache:
           key: registry-{{ epoch }}
           paths:
             - ~/.cargo/registry/index
-      - restore_cache:
-          key: dependencies-{{ checksum "Cargo.lock" }}
-      - run: cargo build
       - save_cache:
           key: dependencies-{{ checksum "Cargo.lock" }}
           paths:
