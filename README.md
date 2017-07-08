@@ -1,4 +1,5 @@
 # cargo-sls-distribution
+[![CircleCI](https://circleci.com/gh/sfackler/cargo-sls-distribution.svg?style=shield)](https://circleci.com/gh/sfackler/cargo-sls-distribution)
 
 A Cargo subcommand which packages binary crates in a format compatible with the [SLS specification][SLS] for easy
 distribution and execution. The package layout is designed to split immutable files from mutable state and
