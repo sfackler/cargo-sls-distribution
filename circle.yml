@@ -6,6 +6,8 @@ jobs:
       - image: jimmycuadra/rust:1.17.0
     steps:
       - checkout
+      - run: apt-get update
+      - run: DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends cmake
       - restore_cache:
           key: registry
       - run: cargo generate-lockfile
