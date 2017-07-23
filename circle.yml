@@ -22,3 +22,25 @@ jobs:
           paths:
             - target
             - ~/.cargo/registry/cache
+  dist:
+    working_directory: ~/build
+    docker:
+      - image: jimmycuadra/rust:1.19.0
+    steps:
+      - checkout
+      - run: apt-get update
+      - run: apt-get install -y --no-install-recommends cmake musl-tools
+      - run: rustup target add x86_64-unknown-linux-musl
+      - run: cargo build --release --target x86_64-unknown-linux-musl
+      - store_artifacts:
+          path: target/x86_64-unknown-linux-musl/release/cargo-sls-distribution
+          destination: x86_64-unknown-linux-musl
+
+workflows:
+  version: 2
+  build:
+    jobs:
+      - build
+      - dist:
+          requires:
+            - build
