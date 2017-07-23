@@ -26,6 +26,8 @@ jobs:
     working_directory: ~/build
     docker:
       - image: jimmycuadra/rust:1.19.0
+    environment:
+      CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER: musl-gcc
     steps:
       - checkout
       - run: apt-get update
