@@ -3,7 +3,7 @@ jobs:
   build:
     working_directory: ~/build
     docker:
-      - image: jimmycuadra/rust:1.17.0
+      - image: jimmycuadra/rust:1.19.0
     steps:
       - checkout
       - run: apt-get update
@@ -11,14 +11,14 @@ jobs:
       - restore_cache:
           key: registry
       - restore_cache:
-          key: dependencies-{{ checksum "Cargo.lock" }}
+          key: dependencies-1.19-{{ checksum "Cargo.lock" }}
       - run: cargo build
       - save_cache:
           key: registry-{{ epoch }}
           paths:
             - ~/.cargo/registry/index
       - save_cache:
-          key: dependencies-{{ checksum "Cargo.lock" }}
+          key: dependencies-1.19-{{ checksum "Cargo.lock" }}
           paths:
             - target
             - ~/.cargo/registry/cache
