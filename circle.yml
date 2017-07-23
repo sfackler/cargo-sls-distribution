@@ -36,7 +36,7 @@ jobs:
       - run: cargo build --release --target x86_64-unknown-linux-musl
       - store_artifacts:
           path: target/x86_64-unknown-linux-musl/release/cargo-sls-distribution
-          destination: x86_64-unknown-linux-musl
+          destination: x86_64-unknown-linux-musl/cargo-sls-distribution
 
 workflows:
   version: 2
