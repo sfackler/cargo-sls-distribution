@@ -7,7 +7,7 @@ jobs:
     steps:
       - checkout
       - run: apt-get update
-      - run: DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends cmake
+      - run: apt-get install -y --no-install-recommends cmake zlib1g-dev
       - restore_cache:
           key: registry
       - restore_cache:
