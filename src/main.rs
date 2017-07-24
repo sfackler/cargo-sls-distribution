@@ -170,7 +170,12 @@ fn real_main() -> Result<()> {
 
     let flags: Flags = Docopt::new(USAGE)
         .map(|d| d.help(true))
-        .map(|d| d.version(Some(format!("cargo-sls-distribution {}", env!("CARGO_PKG_VERSION")))))
+        .map(|d| {
+            d.version(Some(format!(
+                "cargo-sls-distribution {}",
+                env!("CARGO_PKG_VERSION")
+            )))
+        })
         .and_then(|d| d.deserialize())
         .unwrap_or_else(|e| e.exit());
 
@@ -178,8 +183,10 @@ fn real_main() -> Result<()> {
 
     let artifacts = build(&flags, &cargo)?;
     if artifacts.len() != 1 {
-        bail!("expected a single binary artifact, but got {}",
-              artifacts.len());
+        bail!(
+            "expected a single binary artifact, but got {}",
+            artifacts.len()
+        );
     }
 
     let manifest_path = get_manifest_path(&flags, &cargo)?;
@@ -339,8 +346,9 @@ fn get_package_files(flags: &Flags, project_root: &Path, cargo: &OsStr) -> Resul
     if !output.status.success() {
         bail!("cargo package returned {}", output.status);
     }
-    let stdout = String::from_utf8(output.stdout)
-        .chain_err(|| "error parsing cargo package output")?;
+    let stdout = String::from_utf8(output.stdout).chain_err(
+        || "error parsing cargo package output",
+    )?;
 
     let files = stdout.lines().map(|l| project_root.join(l)).collect();
     Ok(files)
@@ -361,8 +369,9 @@ fn get_manifest_path(flags: &Flags, cargo: &OsStr) -> Result<PathBuf> {
         bail!("cargo locate-project returned {}", output.status);
     }
 
-    let info: ProjectInfo = serde_json::from_slice(&output.stdout)
-        .chain_err(|| "error parsing cargo locate-project output")?;
+    let info: ProjectInfo = serde_json::from_slice(&output.stdout).chain_err(
+        || "error parsing cargo locate-project output",
+    )?;
     Ok(info.root.into())
 }
 
@@ -377,8 +386,9 @@ fn get_config(manifest_path: &Path) -> Result<CargoToml> {
 
 fn get_version(project_root: &Path, config: &CargoToml) -> Result<String> {
     if config.package.metadata.sls_distribution.git_version {
-        let repo = Repository::discover(project_root)
-            .chain_err(|| "error discovering git repository")?;
+        let repo = Repository::discover(project_root).chain_err(
+            || "error discovering git repository",
+        )?;
         let description = repo.describe(DescribeOptions::new().describe_tags())
             .chain_err(|| "error describing git repository")?;
         let version = description
@@ -390,23 +400,24 @@ fn get_version(project_root: &Path, config: &CargoToml) -> Result<String> {
     }
 }
 
-fn build_dist(artifact: &Artifact,
-              sources: &[PathBuf],
-              config: CargoToml,
-              package_dir: &Path,
-              version: &str)
-              -> Result<PathBuf> {
+fn build_dist(
+    artifact: &Artifact,
+    sources: &[PathBuf],
+    config: CargoToml,
+    package_dir: &Path,
+    version: &str,
+) -> Result<PathBuf> {
     let name = config.package.name;
     let identifier = format!("{}-{}", name, version);
     let base = Path::new(&identifier);
 
-    let out_path = artifact
-        .path
-        .parent()
-        .unwrap()
-        .join(format!("{}.sls.tgz", identifier));
-    let out = File::create(&out_path)
-        .chain_err(|| format!("error creating tarball {}", out_path.display()))?;
+    let out_path = artifact.path.parent().unwrap().join(format!(
+        "{}.sls.tgz",
+        identifier
+    ));
+    let out = File::create(&out_path).chain_err(|| {
+        format!("error creating tarball {}", out_path.display())
+    })?;
     let out = BufWriter::new(out);
     let out = GzEncoder::new(out, Compression::Default);
     let mut out = tar::Builder::new(out);
@@ -414,8 +425,10 @@ fn build_dist(artifact: &Artifact,
     let sls_distribution = config.package.metadata.sls_distribution;
     let mut extensions = sls_distribution.manifest_extensions;
     if !sls_distribution.product_dependencies.is_empty() {
-        extensions.insert("product-dependencies".to_string(),
-                          serde_json::to_value(sls_distribution.product_dependencies).unwrap());
+        extensions.insert(
+            "product-dependencies".to_string(),
+            serde_json::to_value(sls_distribution.product_dependencies).unwrap(),
+        );
     }
 
     let manifest = Manifest {
@@ -427,10 +440,12 @@ fn build_dist(artifact: &Artifact,
         extensions: extensions,
     };
     let manifest = serde_json::to_string(&manifest).unwrap();
-    add_string(&mut out,
-               &manifest,
-               &base.join("deployment/manifest.yml"),
-               0o644)?;
+    add_string(
+        &mut out,
+        &manifest,
+        &base.join("deployment/manifest.yml"),
+        0o644,
+    )?;
 
     let binary_path = Path::new("service/bin").join(artifact.path.file_name().unwrap());
     let start_args = sls_distribution
@@ -441,10 +456,12 @@ fn build_dist(artifact: &Artifact,
         .join(" ");
     let check_args = match sls_distribution.check_args {
         Some(check_args) => {
-            add_string(&mut out,
-                       CHECK_SH,
-                       &base.join("service/monitoring/bin/check.sh"),
-                       0o755)?;
+            add_string(
+                &mut out,
+                CHECK_SH,
+                &base.join("service/monitoring/bin/check.sh"),
+                0o755,
+            )?;
             check_args
                 .into_iter()
                 .map(|s| shell_escape::escape(s.into()))
@@ -462,18 +479,24 @@ fn build_dist(artifact: &Artifact,
 
     add_file(&mut out, &artifact.path, &base.join(&binary_path))?;
 
-    add_dir(&mut out,
-            sources,
-            &package_dir.join("var"),
-            &base.join("var"))?;
-    add_dir(&mut out,
-            sources,
-            &package_dir.join("deployment"),
-            &base.join("deployment"))?;
-    add_dir(&mut out,
-            sources,
-            &package_dir.join("service"),
-            &base.join("service"))?;
+    add_dir(
+        &mut out,
+        sources,
+        &package_dir.join("var"),
+        &base.join("var"),
+    )?;
+    add_dir(
+        &mut out,
+        sources,
+        &package_dir.join("deployment"),
+        &base.join("deployment"),
+    )?;
+    add_dir(
+        &mut out,
+        sources,
+        &package_dir.join("service"),
+        &base.join("service"),
+    )?;
 
     out.into_inner()
         .and_then(|w| w.finish())
@@ -484,43 +507,51 @@ fn build_dist(artifact: &Artifact,
 }
 
 fn add_file<W>(out: &mut tar::Builder<W>, file_path: &Path, target_path: &Path) -> Result<()>
-    where W: Write
+where
+    W: Write,
 {
-    let mut file = File::open(file_path)
-        .chain_err(|| format!("error opening file {}", file_path.display()))?;
-    out.append_file(target_path, &mut file)
-        .chain_err(|| "error writing tarball")?;
+    let mut file = File::open(file_path).chain_err(|| {
+        format!("error opening file {}", file_path.display())
+    })?;
+    out.append_file(target_path, &mut file).chain_err(
+        || "error writing tarball",
+    )?;
     Ok(())
 }
 
-fn add_string<W>(out: &mut tar::Builder<W>,
-                 contents: &str,
-                 target_path: &Path,
-                 mode: u32)
-                 -> Result<()>
-    where W: Write
+fn add_string<W>(
+    out: &mut tar::Builder<W>,
+    contents: &str,
+    target_path: &Path,
+    mode: u32,
+) -> Result<()>
+where
+    W: Write,
 {
     let mut header = tar::Header::new_gnu();
-    header
-        .set_path(target_path)
-        .chain_err(|| "error writing tarball")?;
+    header.set_path(target_path).chain_err(
+        || "error writing tarball",
+    )?;
     header.set_size(contents.len() as u64);
     header.set_entry_type(tar::EntryType::file());
     header.set_mtime(UNIX_EPOCH.elapsed().unwrap().as_secs());
     header.set_mode(mode);
     header.set_cksum();
 
-    out.append(&header, &mut contents.as_bytes())
-        .chain_err(|| "error writing tarball")?;
+    out.append(&header, &mut contents.as_bytes()).chain_err(
+        || "error writing tarball",
+    )?;
     Ok(())
 }
 
-fn add_dir<W>(out: &mut tar::Builder<W>,
-              sources: &[PathBuf],
-              source_path: &Path,
-              target_path: &Path)
-              -> Result<()>
-    where W: Write
+fn add_dir<W>(
+    out: &mut tar::Builder<W>,
+    sources: &[PathBuf],
+    source_path: &Path,
+    target_path: &Path,
+) -> Result<()>
+where
+    W: Write,
 {
     for source in sources {
         if let Ok(prefix) = source.strip_prefix(source_path) {
