@@ -4,7 +4,6 @@ extern crate flate2;
 extern crate git2;
 extern crate serde;
 extern crate serde_json;
-extern crate serde_yaml;
 extern crate shell_escape;
 extern crate tar;
 extern crate toml;
@@ -20,7 +19,7 @@ use docopt::Docopt;
 use flate2::Compression;
 use flate2::write::GzEncoder;
 use git2::{Repository, DescribeOptions, DescribeFormatOptions};
-use serde_yaml::Value;
+use serde_json::Value;
 use std::collections::HashMap;
 use std::env;
 use std::ffi::{OsString, OsStr};
@@ -416,7 +415,7 @@ fn build_dist(artifact: &Artifact,
     let mut extensions = sls_distribution.manifest_extensions;
     if !sls_distribution.product_dependencies.is_empty() {
         extensions.insert("product-dependencies".to_string(),
-                          serde_yaml::to_value(sls_distribution.product_dependencies).unwrap());
+                          serde_json::to_value(sls_distribution.product_dependencies).unwrap());
     }
 
     let manifest = Manifest {
@@ -427,7 +426,7 @@ fn build_dist(artifact: &Artifact,
         product_version: version.to_string(),
         extensions: extensions,
     };
-    let manifest = serde_yaml::to_string(&manifest).unwrap();
+    let manifest = serde_json::to_string(&manifest).unwrap();
     add_string(&mut out,
                &manifest,
                &base.join("deployment/manifest.yml"),
