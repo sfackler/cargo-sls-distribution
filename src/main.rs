@@ -439,7 +439,7 @@ fn build_dist(
         product_version: version.to_string(),
         extensions: extensions,
     };
-    let manifest = serde_json::to_string(&manifest).unwrap();
+    let manifest = serde_json::to_string_pretty(&manifest).unwrap();
     add_string(
         &mut out,
         &manifest,
