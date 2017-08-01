@@ -12,7 +12,7 @@ jobs:
           key: registry
       - restore_cache:
           key: dependencies-1.19-{{ checksum "Cargo.lock" }}
-      - run: cargo build
+      - run: cargo build --locked
       - save_cache:
           key: registry-{{ epoch }}
           paths:
