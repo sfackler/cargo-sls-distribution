@@ -1,40 +1,3 @@
-version: 2
-jobs:
-  build:
-    <<: *JOB
-    steps:
-      - checkout
-      - run: apt-get update
-      - run: apt-get install -y --no-install-recommends cmake zlib1g-dev
-      : <<: *RESTORE_REGISTRY
-      - <<: *RESTORE_DEPS
-      - run: cargo build --locked
-      - <<: *SAVE_REGISTRY
-      - <<: *SAVE_DEPS
-  dist:
-    <<: *JOB
-    environment:
-      CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER: musl-gcc
-    steps:
-      - checkout
-      - run: apt-get update
-      - run: apt-get install -y --no-install-recommends cmake musl-tools
-      - run: rustup target add x86_64-unknown-linux-musl
-      - <<: *RESTORE_REGISTRY
-      - run: cargo build --target x86_64-unknown-linux-musl --release --locked
-      - store_artifacts:
-          path: target/x86_64-unknown-linux-musl/release/cargo-sls-distribution
-          destination: cargo-sls-distribution-x86_64-unknown-linux-musl
-
-workflows:
-  version: 2
-  build:
-    jobs:
-      - build
-      - dist
-        requires:
-          - build
-
 job: &JOB
   working_directory: ~/build
   docker:
@@ -58,8 +21,45 @@ restore_deps: &RESTORE_DEPS
     <<: *DEPS_KEY
 
 save_deps: &SAVE_DEPS
-  save_deps:
+  save_cache:
     <<: *DEPS_KEY
     paths:
       - target
       - ~/.cargo/registry/cache
+
+version: 2
+jobs:
+  test:
+    <<: *JOB
+    steps:
+      - checkout
+      - run: apt-get update
+      - run: apt-get install -y --no-install-recommends cmake zlib1g-dev
+      - <<: *RESTORE_REGISTRY
+      - <<: *RESTORE_DEPS
+      - run: cargo build --locked
+      - <<: *SAVE_REGISTRY
+      - <<: *SAVE_DEPS
+  dist:
+    <<: *JOB
+    environment:
+      CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER: musl-gcc
+    steps:
+      - checkout
+      - run: apt-get update
+      - run: apt-get install -y --no-install-recommends cmake musl-tools
+      - run: rustup target add x86_64-unknown-linux-musl
+      - <<: *RESTORE_REGISTRY
+      - run: cargo build --target x86_64-unknown-linux-musl --release --locked
+      - store_artifacts:
+          path: target/x86_64-unknown-linux-musl/release/cargo-sls-distribution
+          destination: cargo-sls-distribution-x86_64-unknown-linux-musl
+
+workflows:
+  version: 2
+  test_dist:
+    jobs:
+      - test
+      - dist:
+          requires:
+            - test
