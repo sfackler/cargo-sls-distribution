@@ -62,6 +62,7 @@ workflows:
       - dist:
           requires:
             - test
+          context: org-global
           filters:
             tags:
               only: /.*/
