@@ -1,24 +1,65 @@
 version: 2
 jobs:
   build:
-    working_directory: ~/build
-    docker:
-      - image: jimmycuadra/rust:1.19.0
+    <<: *JOB
     steps:
       - checkout
       - run: apt-get update
       - run: apt-get install -y --no-install-recommends cmake zlib1g-dev
-      - restore_cache:
-          key: registry
-      - restore_cache:
-          key: dependencies-1.19-{{ checksum "Cargo.lock" }}
+      : <<: *RESTORE_REGISTRY
+      - <<: *RESTORE_DEPS
       - run: cargo build --locked
-      - save_cache:
-          key: registry-{{ epoch }}
-          paths:
-            - ~/.cargo/registry/index
-      - save_cache:
-          key: dependencies-1.19-{{ checksum "Cargo.lock" }}
-          paths:
-            - target
-            - ~/.cargo/registry/cache
+      - <<: *SAVE_REGISTRY
+      - <<: *SAVE_DEPS
+  dist:
+    <<: *JOB
+    environment:
+      CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER: musl-gcc
+    steps:
+      - checkout
+      - run: apt-get update
+      - run: apt-get install -y --no-install-recommends cmake musl-tools
+      - run: rustup target add x86_64-unknown-linux-musl
+      - <<: *RESTORE_REGISTRY
+      - run: cargo build --target x86_64-unknown-linux-musl --release --locked
+      - store_artifacts:
+          path: target/x86_64-unknown-linux-musl/release/cargo-sls-distribution
+          destination: cargo-sls-distribution-x86_64-unknown-linux-musl
+
+workflows:
+  version: 2
+  build:
+    jobs:
+      - build
+      - dist
+        requires:
+          - build
+
+job: &JOB
+  working_directory: ~/build
+  docker:
+    - image: jimmycuadra/rust:1.19.0
+
+deps_key: &DEPS_KEY
+  key: dependencies-1.19-{{ checksum "Cargo.lock" }}
+
+restore_registry: &RESTORE_REGISTRY
+  restore_cache:
+    key: registry
+
+save_registry: &SAVE_REGISTRY
+  save_cache:
+    key: registry-{{ .BuildNum }}
+    paths:
+      - ~/.cargo/registry/index
+
+restore_deps: &RESTORE_DEPS
+  restore_cache:
+    <<: *DEPS_KEY
+
+save_deps: &SAVE_DEPS
+  save_deps:
+    <<: *DEPS_KEY
+    paths:
+      - target
+      - ~/.cargo/registry/cache
