@@ -67,4 +67,4 @@ workflows:
             tags:
               only: /.*/
             branches:
-              ignore: /.*/
+              only: dist-test

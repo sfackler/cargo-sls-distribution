@@ -2,6 +2,11 @@
 
 require 'octokit'
 
+if ENV["CIRCLE_BRANCH"] == "dist-test"
+    puts "Skipping publish"
+    exit 0
+end
+
 target = ARGV[0]
 name = ARGV[1]
 
