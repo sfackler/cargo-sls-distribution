@@ -43,7 +43,8 @@ jobs:
   dist:
     <<: *JOB
     environment:
-      CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER: musl-gcc
+      # https://github.com/rust-lang/rust/issues/43647
+      CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER: /root/build/.circleci/no-pie-gcc
     steps:
       - checkout
       - run: apt-get update
