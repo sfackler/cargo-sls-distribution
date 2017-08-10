@@ -14,7 +14,7 @@ save_registry: &SAVE_REGISTRY
   save_cache:
     key: registry-{{ .BuildNum }}
     paths:
-      - ~/.cargo/registry/index
+      - $CARGO_HOME/registry/index
 
 restore_deps: &RESTORE_DEPS
   restore_cache:
@@ -25,7 +25,7 @@ save_deps: &SAVE_DEPS
     <<: *DEPS_KEY
     paths:
       - target
-      - ~/.cargo/registry/cache
+      - $CARGO_HOME/registry/cache
 
 version: 2
 jobs:
