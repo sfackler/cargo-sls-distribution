@@ -1,7 +1,7 @@
 job: &JOB
   working_directory: ~/build
   docker:
-    - image: jimmycuadra/rust:1.19.0
+    - image: rust:1.19.0
 
 deps_key: &DEPS_KEY
   key: dependencies-1.19-{{ checksum "Cargo.lock" }}
