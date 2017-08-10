@@ -54,7 +54,7 @@ jobs:
       - <<: *RESTORE_REGISTRY
       - run: cargo build --target x86_64-unknown-linux-musl --release --locked
       - run: file target/x86_64-unknown-linux-musl/release/cargo-sls-distribution
-      - run: ldd target/x86_64-unknown-linux-musl/release/cargo-sls-distribution
+      - run: ldd target/x86_64-unknown-linux-musl/release/cargo-sls-distribution || true
       - run: ./.circleci/publish_dist.rb x86_64-unknown-linux-musl cargo-sls-distribution
 
 workflows:
