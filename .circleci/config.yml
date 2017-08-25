@@ -35,11 +35,11 @@ jobs:
       - checkout
       - run: apt-get update
       - run: apt-get install -y --no-install-recommends cmake zlib1g-dev
-      - <<: *RESTORE_REGISTRY
-      - <<: *RESTORE_DEPS
+      - *RESTORE_REGISTRY
+      - *RESTORE_DEPS
       - run: cargo build --locked
-      - <<: *SAVE_REGISTRY
-      - <<: *SAVE_DEPS
+      - *SAVE_REGISTRY
+      - *SAVE_DEPS
   dist:
     <<: *JOB
     environment:
@@ -51,7 +51,7 @@ jobs:
       - run: apt-get install -y --no-install-recommends cmake musl-tools ruby
       - run: rustup target add x86_64-unknown-linux-musl
       - run: gem install octokit
-      - <<: *RESTORE_REGISTRY
+      - *RESTORE_REGISTRY
       - run: cargo build --target x86_64-unknown-linux-musl --release --locked
       - run: strip target/x86_64-unknown-linux-musl/release/cargo-sls-distribution
       - run: ./.circleci/publish_dist.rb x86_64-unknown-linux-musl cargo-sls-distribution
