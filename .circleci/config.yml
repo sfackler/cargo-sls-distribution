@@ -60,7 +60,10 @@ workflows:
   version: 2
   test_dist:
     jobs:
-      - test
+      - test:
+          filters:
+            tags:
+              only: /.*/
       - dist:
           requires:
             - test
