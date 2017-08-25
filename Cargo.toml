@@ -1,6 +1,6 @@
 [package]
 name = "cargo-sls-distribution"
-version = "0.4.4"
+version = "0.4.5"
 authors = ["Steven Fackler <sfackler@gmail.com>"]
 license = "Apache-2.0"
 description = "A Cargo subcommand which packages a binary crate into a distribution archive"
