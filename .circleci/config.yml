@@ -42,9 +42,6 @@ jobs:
       - *SAVE_DEPS
   dist:
     <<: *JOB
-    environment:
-      # https://github.com/rust-lang/rust/issues/43647
-      CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER: /root/build/.circleci/no-pie-gcc
     steps:
       - checkout
       - run: apt-get update
