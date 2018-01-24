@@ -9,27 +9,26 @@ extern crate tar;
 extern crate toml;
 
 #[macro_use]
-extern crate error_chain;
+extern crate failure;
 #[macro_use]
 extern crate log;
 #[macro_use]
 extern crate serde_derive;
 
 use docopt::Docopt;
+use failure::{Error, ResultExt};
 use flate2::Compression;
 use flate2::write::GzEncoder;
-use git2::{Repository, DescribeOptions, DescribeFormatOptions};
+use git2::{DescribeFormatOptions, DescribeOptions, Repository};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::env;
-use std::ffi::{OsString, OsStr};
+use std::ffi::{OsStr, OsString};
 use std::fs::File;
-use std::io::{Read, Write, BufWriter};
+use std::io::{BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::{self, Command, Stdio};
 use std::time::UNIX_EPOCH;
-
-use errors::*;
 
 const USAGE: &'static str = "
 Package a binary crate into a distribution tarball
@@ -56,10 +55,6 @@ Options:
 
 const INIT_SH: &'static str = include_str!("init.sh");
 const CHECK_SH: &'static str = include_str!("check.sh");
-
-mod errors {
-    error_chain!{}
-}
 
 #[derive(Deserialize)]
 struct Flags {
@@ -163,9 +158,19 @@ struct Artifact {
     path: PathBuf,
 }
 
-quick_main!(real_main);
+fn main() {
+    if let Err(e) = real_main() {
+        for (i, e) in e.causes().enumerate() {
+            if i != 0 {
+                eprint!("Caused by: ");
+            }
+            eprintln!("{}", e);
+        }
+        process::exit(1);
+    }
+}
 
-fn real_main() -> Result<()> {
+fn real_main() -> Result<(), Error> {
     env_logger::init();
 
     let flags: Flags = Docopt::new(USAGE)
@@ -209,7 +214,7 @@ fn real_main() -> Result<()> {
 
 // we call `cargo build` twice - once with normal human message to actually run
 // the build and again with JSON messages to find where the binary is.
-fn build(flags: &Flags, cargo: &OsStr) -> Result<Vec<Artifact>> {
+fn build(flags: &Flags, cargo: &OsStr) -> Result<Vec<Artifact>, Error> {
     let mut command = Command::new(cargo);
     command.arg("build");
     if let Some(jobs) = flags.flag_jobs {
@@ -252,7 +257,7 @@ fn build(flags: &Flags, cargo: &OsStr) -> Result<Vec<Artifact>> {
         command.arg("--locked");
     }
 
-    let status = command.status().chain_err(|| "error running cargo")?;
+    let status = command.status().context("error running cargo")?;
     if !status.success() {
         bail!("cargo build returned returned {}", status);
     }
@@ -289,7 +294,7 @@ fn build(flags: &Flags, cargo: &OsStr) -> Result<Vec<Artifact>> {
     let output = command
         .spawn()
         .and_then(|c| c.wait_with_output())
-        .chain_err(|| "error running cargo")?;
+        .context("error running cargo")?;
     if !output.status.success() {
         bail!("cargo build returned {}", output.status);
     }
@@ -298,9 +303,10 @@ fn build(flags: &Flags, cargo: &OsStr) -> Result<Vec<Artifact>> {
     for line in output.stdout.split(|c| *c == b'\n') {
         match serde_json::from_slice(line) {
             Ok(BuildMessage::CompilerArtifact {
-                   ref target,
-                   ref mut filenames,
-               }) if target.kind == ["bin"] => {
+                ref target,
+                ref mut filenames,
+            }) if target.kind == ["bin"] =>
+            {
                 let artifact = Artifact {
                     name: target.name.clone(),
                     path: filenames.pop().unwrap().into(),
@@ -313,7 +319,11 @@ fn build(flags: &Flags, cargo: &OsStr) -> Result<Vec<Artifact>> {
     Ok(artifacts)
 }
 
-fn get_package_files(flags: &Flags, project_root: &Path, cargo: &OsStr) -> Result<Vec<PathBuf>> {
+fn get_package_files(
+    flags: &Flags,
+    project_root: &Path,
+    cargo: &OsStr,
+) -> Result<Vec<PathBuf>, Error> {
     let mut command = Command::new(cargo);
     command
         .arg("package")
@@ -342,19 +352,17 @@ fn get_package_files(flags: &Flags, project_root: &Path, cargo: &OsStr) -> Resul
     let output = command
         .spawn()
         .and_then(|c| c.wait_with_output())
-        .chain_err(|| "error running cargo")?;
+        .context("error running cargo")?;
     if !output.status.success() {
         bail!("cargo package returned {}", output.status);
     }
-    let stdout = String::from_utf8(output.stdout).chain_err(
-        || "error parsing cargo package output",
-    )?;
+    let stdout = String::from_utf8(output.stdout).context("error parsing cargo package output")?;
 
     let files = stdout.lines().map(|l| project_root.join(l)).collect();
     Ok(files)
 }
 
-fn get_manifest_path(flags: &Flags, cargo: &OsStr) -> Result<PathBuf> {
+fn get_manifest_path(flags: &Flags, cargo: &OsStr) -> Result<PathBuf, Error> {
     let mut command = Command::new(cargo);
     command.arg("locate-project").stdout(Stdio::piped());
     if let Some(ref manifest_path) = flags.flag_manifest_path {
@@ -364,36 +372,35 @@ fn get_manifest_path(flags: &Flags, cargo: &OsStr) -> Result<PathBuf> {
     let output = command
         .spawn()
         .and_then(|c| c.wait_with_output())
-        .chain_err(|| "error running cargo")?;
+        .context("error running cargo")?;
     if !output.status.success() {
         bail!("cargo locate-project returned {}", output.status);
     }
 
-    let info: ProjectInfo = serde_json::from_slice(&output.stdout).chain_err(
-        || "error parsing cargo locate-project output",
-    )?;
+    let info: ProjectInfo = serde_json::from_slice(&output.stdout)
+        .context("error parsing cargo locate-project output")?;
     Ok(info.root.into())
 }
 
-fn get_config(manifest_path: &Path) -> Result<CargoToml> {
+fn get_config(manifest_path: &Path) -> Result<CargoToml, Error> {
     let mut config = String::new();
     File::open(manifest_path)
         .and_then(|mut f| f.read_to_string(&mut config))
-        .chain_err(|| "error reading Cargo.toml")?;
+        .context("error reading Cargo.toml")?;
 
-    toml::from_str(&config).chain_err(|| "error parsing Cargo.toml")
+    let toml = toml::from_str(&config).context("error parsing Cargo.toml")?;
+
+    Ok(toml)
 }
 
-fn get_version(project_root: &Path, config: &CargoToml) -> Result<String> {
+fn get_version(project_root: &Path, config: &CargoToml) -> Result<String, Error> {
     if config.package.metadata.sls_distribution.git_version {
-        let repo = Repository::discover(project_root).chain_err(
-            || "error discovering git repository",
-        )?;
+        let repo = Repository::discover(project_root).context("error discovering git repository")?;
         let description = repo.describe(DescribeOptions::new().describe_tags())
-            .chain_err(|| "error describing git repository")?;
+            .context("error describing git repository")?;
         let version = description
             .format(Some(DescribeFormatOptions::new().dirty_suffix("-dirty")))
-            .chain_err(|| "error formatting git description")?;
+            .context("error formatting git description")?;
         Ok(version)
     } else {
         Ok(config.package.version.clone())
@@ -406,18 +413,18 @@ fn build_dist(
     config: CargoToml,
     package_dir: &Path,
     version: &str,
-) -> Result<PathBuf> {
+) -> Result<PathBuf, Error> {
     let name = config.package.name;
     let identifier = format!("{}-{}", name, version);
     let base = Path::new(&identifier);
 
-    let out_path = artifact.path.parent().unwrap().join(format!(
-        "{}.sls.tgz",
-        identifier
-    ));
-    let out = File::create(&out_path).chain_err(|| {
-        format!("error creating tarball {}", out_path.display())
-    })?;
+    let out_path = artifact
+        .path
+        .parent()
+        .unwrap()
+        .join(format!("{}.sls.tgz", identifier));
+    let out = File::create(&out_path)
+        .with_context(|_| format!("error creating tarball {}", out_path.display()))?;
     let out = BufWriter::new(out);
     let out = GzEncoder::new(out, Compression::default());
     let mut out = tar::Builder::new(out);
@@ -501,21 +508,19 @@ fn build_dist(
     out.into_inner()
         .and_then(|w| w.finish())
         .and_then(|mut w| w.flush())
-        .chain_err(|| "error writing tarball")?;
+        .context("error writing tarball")?;
 
     Ok(out_path)
 }
 
-fn add_file<W>(out: &mut tar::Builder<W>, file_path: &Path, target_path: &Path) -> Result<()>
+fn add_file<W>(out: &mut tar::Builder<W>, file_path: &Path, target_path: &Path) -> Result<(), Error>
 where
     W: Write,
 {
-    let mut file = File::open(file_path).chain_err(|| {
-        format!("error opening file {}", file_path.display())
-    })?;
-    out.append_file(target_path, &mut file).chain_err(
-        || "error writing tarball",
-    )?;
+    let mut file = File::open(file_path)
+        .with_context(|_| format!("error opening file {}", file_path.display()))?;
+    out.append_file(target_path, &mut file)
+        .context("error writing tarball")?;
     Ok(())
 }
 
@@ -524,23 +529,22 @@ fn add_string<W>(
     contents: &str,
     target_path: &Path,
     mode: u32,
-) -> Result<()>
+) -> Result<(), Error>
 where
     W: Write,
 {
     let mut header = tar::Header::new_gnu();
-    header.set_path(target_path).chain_err(
-        || "error writing tarball",
-    )?;
+    header
+        .set_path(target_path)
+        .context("error writing tarball")?;
     header.set_size(contents.len() as u64);
     header.set_entry_type(tar::EntryType::file());
     header.set_mtime(UNIX_EPOCH.elapsed().unwrap().as_secs());
     header.set_mode(mode);
     header.set_cksum();
 
-    out.append(&header, &mut contents.as_bytes()).chain_err(
-        || "error writing tarball",
-    )?;
+    out.append(&header, &mut contents.as_bytes())
+        .context("error writing tarball")?;
     Ok(())
 }
 
@@ -549,7 +553,7 @@ fn add_dir<W>(
     sources: &[PathBuf],
     source_path: &Path,
     target_path: &Path,
-) -> Result<()>
+) -> Result<(), Error>
 where
     W: Write,
 {

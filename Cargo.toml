@@ -11,7 +11,7 @@ exclude = ["test-service"]
 [dependencies]
 docopt = "0.8"
 env_logger = "0.5"
-error-chain = "0.10"
+failure = "0.1"
 flate2 = "1.0"
 git2 = { version = "0.6", default_features = false }
 log = "0.4"
