@@ -166,7 +166,7 @@ struct Artifact {
 quick_main!(real_main);
 
 fn real_main() -> Result<()> {
-    env_logger::init().unwrap();
+    env_logger::init();
 
     let flags: Flags = Docopt::new(USAGE)
         .map(|d| d.help(true))
@@ -419,7 +419,7 @@ fn build_dist(
         format!("error creating tarball {}", out_path.display())
     })?;
     let out = BufWriter::new(out);
-    let out = GzEncoder::new(out, Compression::Default);
+    let out = GzEncoder::new(out, Compression::default());
     let mut out = tar::Builder::new(out);
 
     let sls_distribution = config.package.metadata.sls_distribution;

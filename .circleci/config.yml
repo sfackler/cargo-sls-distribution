@@ -1,10 +1,10 @@
 job: &JOB
   working_directory: ~/build
   docker:
-    - image: rust:1.19.0
+    - image: rust:1.23.0
 
 deps_key: &DEPS_KEY
-  key: deps-1.19-{{ checksum "Cargo.lock" }}
+  key: deps-1.23-{{ checksum "Cargo.lock" }}
 
 restore_registry: &RESTORE_REGISTRY
   restore_cache:
